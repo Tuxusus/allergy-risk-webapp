@@ -1,18 +1,26 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Allergy Risk Web App</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-    <h1>Сайт запущен</h1>
-    <p>Flask работает корректно.</p>
+    <div class="container">
+        <h1>Allergy Risk Web App</h1>
+
+        <button id="test-btn">Проверить API</button>
+
+        <div class="card">
+            <p><strong>Широта:</strong> <span id="lat">—</span></p>
+            <p><strong>Долгота:</strong> <span id="lon">—</span></p>
+            <p><strong>Риск:</strong> <span id="risk">—</span></p>
+            <p><strong>Прогноз:</strong> <span id="forecast">—</span></p>
+            <p><strong>Риск маршрута:</strong> <span id="route-risk">—</span></p>
+        </div>
+    </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
-
 </html>
