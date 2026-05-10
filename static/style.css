@@ -6,7 +6,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%);
     min-height: 100vh;
 }
 
@@ -16,27 +16,27 @@ body {
     padding: 20px;
 }
 
-/* Шапка */
+/* Шапка - свежая зелёная */
 .header {
-    background: white;
+    background: linear-gradient(135deg, #2e7d32 0%, #43a047 50%, #66bb6a 100%);
     border-radius: 16px;
     padding: 24px 32px;
     margin-bottom: 24px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    color: white;
 }
 
 .header h1 {
     font-size: 28px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
     margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .header p {
-    color: #666;
     font-size: 14px;
+    opacity: 0.9;
 }
 
 /* Основной контейнер */
@@ -52,6 +52,7 @@ body {
     border-radius: 16px;
     padding: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid #c8e6c9;
 }
 
 #map {
@@ -64,11 +65,12 @@ body {
 .coords-info {
     margin-top: 16px;
     padding: 12px;
-    background: #f8f9fa;
+    background: #e8f5e9;
     border-radius: 8px;
     font-size: 14px;
-    color: #555;
+    color: #2e7d32;
     text-align: center;
+    border-left: 4px solid #4caf50;
 }
 
 /* Правая панель */
@@ -85,6 +87,7 @@ body {
     padding: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease;
+    border-left: 4px solid;
 }
 
 .info-card:hover {
@@ -95,11 +98,26 @@ body {
     font-size: 18px;
     margin-bottom: 16px;
     color: #333;
-    border-left: 4px solid #667eea;
     padding-left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-/* Риск */
+/* Разные цвета для карточек */
+.risk-card {
+    border-left-color: #ff9800;
+}
+
+.forecast-card {
+    border-left-color: #2196f3;
+}
+
+.route-card {
+    border-left-color: #4caf50;
+}
+
+/* Риск - оранжевые оттенки */
 .risk-value {
     font-size: 48px;
     font-weight: bold;
@@ -110,18 +128,21 @@ body {
 }
 
 .risk-value.low {
-    background: #d4edda;
-    color: #155724;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 2px solid #4caf50;
 }
 
 .risk-value.medium {
-    background: #fff3cd;
-    color: #856404;
+    background: #fff3e0;
+    color: #ef6c00;
+    border: 2px solid #ff9800;
 }
 
 .risk-value.high {
-    background: #f8d7da;
-    color: #721c24;
+    background: #ffebee;
+    color: #c62828;
+    border: 2px solid #ef5350;
 }
 
 .risk-details p {
@@ -135,18 +156,19 @@ body {
     color: #333;
 }
 
-/* Прогноз */
+/* Прогноз - голубые оттенки */
 .forecast-text {
     font-size: 16px;
     line-height: 1.5;
     color: #555;
     padding: 16px;
-    background: #f8f9fa;
+    background: #e3f2fd;
     border-radius: 8px;
     min-height: 100px;
+    border-left: 3px solid #2196f3;
 }
 
-/* Маршрут */
+/* Маршрут - зелёные оттенки */
 .route-value {
     font-size: 28px;
     font-weight: bold;
@@ -157,24 +179,47 @@ body {
 }
 
 .route-value.low {
-    background: #d4edda;
-    color: #155724;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 2px solid #4caf50;
 }
 
 .route-value.medium {
-    background: #fff3cd;
-    color: #856404;
+    background: #fff3e0;
+    color: #ef6c00;
+    border: 2px solid #ff9800;
 }
 
 .route-value.high {
-    background: #f8d7da;
-    color: #721c24;
+    background: #ffebee;
+    color: #c62828;
+    border: 2px solid #ef5350;
 }
 
 .route-details {
     font-size: 14px;
     color: #555;
     text-align: center;
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+/* Кнопка (если добавите) */
+.btn-primary {
+    background: linear-gradient(135deg, #4caf50, #2e7d32);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn-primary:hover {
+    transform: scale(1.02);
+    background: linear-gradient(135deg, #43a047, #1b5e20);
 }
 
 /* Адаптивность */
@@ -200,4 +245,11 @@ body {
 
 .loading {
     animation: pulse 1s infinite;
+}
+
+/* Иконки погоды */
+.weather-icon {
+    font-size: 24px;
+    margin-right: 8px;
+    vertical-align: middle;
 }
