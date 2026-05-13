@@ -3,53 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Allergy Risk Web App</title>
+    <title>Allergy Risk — умный маршрутизатор для аллергиков</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Yandex Maps API -->
     <script src="https://api-maps.yandex.ru/2.1/?apikey=ef45c9a8-2dbb-41a1-af00-3a189a8eb9bb&lang=ru_RU" type="text/javascript"></script>
 </head>
 <body>
     <div class="app">
-        <!-- Шапка -->
-        <header class="header">
-            <h1>🌿 Allergy Risk Web App</h1>
-            <p>Оценка аллергического риска по местоположению</p>
-        </header>
+        <!-- Шапка минимальная, почти исчезла -->
+        <div class="top-bar">
+            <div class="logo">
+                <span class="logo-icon">🌿</span>
+                <span class="logo-text">Allergy Risk</span>
+            </div>
+            <div class="badge">αльфа</div>
+        </div>
 
         <!-- Основной контент -->
         <div class="main-container">
-            <!-- Карта слева -->
+            <!-- Карта -->
             <div class="map-section">
-                <div id="map" style="width: 100%; height: 500px; border-radius: 12px;"></div>
+                <div id="map"></div>
                 <div class="coords-info" id="coords-info">
-                    <p>📍 Нажмите на карту, чтобы выбрать точку</p>
+                    <span>📍</span> Нажмите на карту
                 </div>
             </div>
 
-            <!-- Панель справа -->
+            <!-- Правая панель -->
             <div class="info-panel">
-                <!-- Блок риска -->
+                <!-- Риск -->
                 <div class="info-card risk-card">
-                    <h3>⚠️ Текущий риск</h3>
+                    <div class="card-header">
+                        <span class="card-icon">⚠️</span>
+                        <h3>Текущий риск</h3>
+                    </div>
                     <div class="risk-value" id="risk-value">—</div>
                     <div class="risk-details" id="risk-details">
-                        <p>Температура: <span id="temp">—</span>°C</p>
-                        <p>Ветер: <span id="wind">—</span> м/с</p>
-                        <p>Влажность: <span id="humidity">—</span>%</p>
+                        <div class="detail-item">
+                            <span>🌡️ Температура</span>
+                            <span id="temp">—</span>
+                        </div>
+                        <div class="detail-item">
+                            <span>💨 Ветер</span>
+                            <span id="wind">—</span>
+                        </div>
+                        <div class="detail-item">
+                            <span>💧 Влажность</span>
+                            <span id="humidity">—</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Блок прогноза -->
+                <!-- Прогноз -->
                 <div class="info-card forecast-card">
-                    <h3>📈 Прогноз</h3>
-                    <div class="forecast-text" id="forecast-text">Нажмите на карту, чтобы получить прогноз</div>
+                    <div class="card-header">
+                        <span class="card-icon">📈</span>
+                        <h3>Прогноз</h3>
+                    </div>
+                    <div class="forecast-text" id="forecast-text">
+                        Выберите точку на карте
+                    </div>
                 </div>
 
-                <!-- Блок маршрута -->
+                <!-- Маршруты -->
                 <div class="info-card route-card">
-                    <h3>🗺️ Риск маршрута</h3>
+                    <div class="card-header">
+                        <span class="card-icon">🗺️</span>
+                        <h3>Маршрут</h3>
+                    </div>
+                    <div class="route-inputs">
+                        <input type="text" id="route-from" placeholder="Откуда" value="Москва, Красная площадь">
+                        <input type="text" id="route-to" placeholder="Куда" value="Москва, Парк Горького">
+                        <button id="build-route-btn">Построить маршрут</button>
+                    </div>
                     <div class="route-value" id="route-value">—</div>
-                    <div class="route-details" id="route-details">Выберите точку на карте</div>
+                    <div class="route-details" id="route-details">
+                        Постройте маршрут, чтобы оценить риск
+                    </div>
                 </div>
             </div>
         </div>

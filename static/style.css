@@ -5,38 +5,94 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
     min-height: 100vh;
+    position: relative;
+}
+
+/* Анимированный фон с переливами */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        125deg,
+        rgba(46, 125, 50, 0.15) 0%,
+        rgba(76, 175, 80, 0.1) 25%,
+        rgba(33, 150, 243, 0.1) 50%,
+        rgba(76, 175, 80, 0.1) 75%,
+        rgba(46, 125, 50, 0.15) 100%
+    );
+    background-size: 200% 200%;
+    animation: gradientFlow 12s ease infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes gradientFlow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
 .app {
-    max-width: 1400px;
+    position: relative;
+    z-index: 1;
+    max-width: 1600px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 16px 24px;
+    min-height: 100vh;
 }
 
-/* Шапка - свежая зелёная */
-.header {
-    background: linear-gradient(135deg, #2e7d32 0%, #43a047 50%, #66bb6a 100%);
-    border-radius: 16px;
-    padding: 24px 32px;
+/* Минимальная шапка */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 24px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    color: white;
+    padding: 0 8px;
 }
 
-.header h1 {
-    font-size: 28px;
-    margin-bottom: 8px;
+.logo {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.header p {
-    font-size: 14px;
-    opacity: 0.9;
+.logo-icon {
+    font-size: 28px;
+    filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.5));
+    animation: iconPulse 3s ease infinite;
+}
+
+@keyframes iconPulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.05); opacity: 1; }
+}
+
+.logo-text {
+    font-size: 20px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #ffffff 0%, #a5d6a7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.3px;
+}
+
+.badge {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    padding: 4px 12px;
+    border-radius: 40px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 /* Основной контейнер */
@@ -46,184 +102,220 @@ body {
     gap: 24px;
 }
 
-/* Секция карты */
+/* Карта */
 .map-section {
-    background: white;
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    border: 1px solid #c8e6c9;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    border-radius: 28px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: all 0.3s ease;
+}
+
+.map-section:hover {
+    border-color: rgba(76, 175, 80, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 #map {
     width: 100%;
-    height: 500px;
-    border-radius: 12px;
+    height: 520px;
+    border-radius: 22px;
     overflow: hidden;
 }
 
 .coords-info {
-    margin-top: 16px;
-    padding: 12px;
-    background: #e8f5e9;
-    border-radius: 8px;
-    font-size: 14px;
-    color: #2e7d32;
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
     text-align: center;
-    border-left: 4px solid #4caf50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 /* Правая панель */
 .info-panel {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 }
 
-/* Карточки информации */
+/* Карточки */
 .info-card {
-    background: white;
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    border-radius: 24px;
     padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s ease;
-    border-left: 4px solid;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .info-card:hover {
     transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(76, 175, 80, 0.3);
 }
 
-.info-card h3 {
-    font-size: 18px;
-    margin-bottom: 16px;
-    color: #333;
-    padding-left: 12px;
+.card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
-/* Разные цвета для карточек */
-.risk-card {
-    border-left-color: #ff9800;
+.card-icon {
+    font-size: 22px;
 }
 
-.forecast-card {
-    border-left-color: #2196f3;
+.card-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: -0.2px;
 }
 
-.route-card {
-    border-left-color: #4caf50;
-}
-
-/* Риск - оранжевые оттенки */
+/* Риск */
 .risk-value {
     font-size: 48px;
-    font-weight: bold;
+    font-weight: 700;
     text-align: center;
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 20px;
     margin-bottom: 16px;
+    transition: all 0.3s;
 }
 
 .risk-value.low {
-    background: #e8f5e9;
-    color: #2e7d32;
-    border: 2px solid #4caf50;
+    background: linear-gradient(135deg, rgba(46, 125, 50, 0.3), rgba(76, 175, 80, 0.15));
+    color: #81c784;
+    border: 1px solid rgba(76, 175, 80, 0.3);
 }
 
 .risk-value.medium {
-    background: #fff3e0;
-    color: #ef6c00;
-    border: 2px solid #ff9800;
+    background: linear-gradient(135deg, rgba(239, 108, 0, 0.3), rgba(255, 152, 0, 0.15));
+    color: #ffb74d;
+    border: 1px solid rgba(255, 152, 0, 0.3);
 }
 
 .risk-value.high {
-    background: #ffebee;
-    color: #c62828;
-    border: 2px solid #ef5350;
+    background: linear-gradient(135deg, rgba(198, 40, 40, 0.3), rgba(239, 83, 80, 0.15));
+    color: #ef9a9a;
+    border: 1px solid rgba(239, 83, 80, 0.3);
 }
 
-.risk-details p {
-    font-size: 14px;
-    margin: 8px 0;
-    color: #555;
+.risk-details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-.risk-details span {
-    font-weight: bold;
-    color: #333;
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
 }
 
-/* Прогноз - голубые оттенки */
+.detail-item span:last-child {
+    font-weight: 600;
+    color: white;
+}
+
+/* Прогноз */
 .forecast-text {
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.5;
-    color: #555;
     padding: 16px;
-    background: #e3f2fd;
-    border-radius: 8px;
-    min-height: 100px;
-    border-left: 3px solid #2196f3;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 16px;
+    color: rgba(255, 255, 255, 0.8);
 }
 
-/* Маршрут - зелёные оттенки */
+/* Маршруты */
+.route-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.route-inputs input {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 13px;
+    color: white;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.route-inputs input:focus {
+    border-color: #4caf50;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.route-inputs input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.route-inputs button {
+    background: linear-gradient(135deg, #2e7d32, #4caf50);
+    border: none;
+    padding: 12px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.route-inputs button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
 .route-value {
-    font-size: 28px;
-    font-weight: bold;
+    font-size: 24px;
+    font-weight: 700;
     text-align: center;
-    padding: 16px;
-    border-radius: 12px;
+    padding: 12px;
+    border-radius: 16px;
     margin-bottom: 12px;
 }
 
 .route-value.low {
-    background: #e8f5e9;
-    color: #2e7d32;
-    border: 2px solid #4caf50;
+    background: rgba(76, 175, 80, 0.15);
+    color: #81c784;
 }
 
 .route-value.medium {
-    background: #fff3e0;
-    color: #ef6c00;
-    border: 2px solid #ff9800;
+    background: rgba(255, 152, 0, 0.15);
+    color: #ffb74d;
 }
 
 .route-value.high {
-    background: #ffebee;
-    color: #c62828;
-    border: 2px solid #ef5350;
+    background: rgba(239, 83, 80, 0.15);
+    color: #ef9a9a;
 }
 
 .route-details {
-    font-size: 14px;
-    color: #555;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
     text-align: center;
     padding: 8px;
-    background: #f5f5f5;
-    border-radius: 8px;
-}
-
-/* Кнопка (если добавите) */
-.btn-primary {
-    background: linear-gradient(135deg, #4caf50, #2e7d32);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.btn-primary:hover {
-    transform: scale(1.02);
-    background: linear-gradient(135deg, #43a047, #1b5e20);
 }
 
 /* Адаптивность */
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
     .main-container {
         grid-template-columns: 1fr;
     }
@@ -232,24 +324,12 @@ body {
         padding: 12px;
     }
     
-    .header h1 {
-        font-size: 22px;
+    #map {
+        height: 400px;
     }
 }
 
-/* Анимация загрузки */
-@keyframes pulse {
-    0% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
-
-.loading {
-    animation: pulse 1s infinite;
-}
-
-/* Иконки погоды */
-.weather-icon {
-    font-size: 24px;
-    margin-right: 8px;
-    vertical-align: middle;
+/* Стили для Yandex Maps (чтобы вписывался в дизайн) */
+ymaps {
+    filter: brightness(1.05) contrast(1.02);
 }
