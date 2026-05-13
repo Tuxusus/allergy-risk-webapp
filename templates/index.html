@@ -5,40 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Allergy Risk — умный маршрутизатор для аллергиков</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Yandex Maps API -->
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=ef45c9a8-2dbb-41a1-af00-3a189a8eb9bb&lang=ru_RU" type="text/javascript"></script>
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
 </head>
 <body>
     <div class="app">
-        <!-- Шапка минимальная, почти исчезла -->
         <div class="top-bar">
             <div class="logo">
                 <span class="logo-icon">🌿</span>
                 <span class="logo-text">Allergy Risk</span>
             </div>
-            <div class="badge">αльфа</div>
+            <div class="badge">альфа</div>
         </div>
 
-        <!-- Основной контент -->
         <div class="main-container">
-            <!-- Карта -->
             <div class="map-section">
                 <div id="map"></div>
                 <div class="coords-info" id="coords-info">
-                    <span>📍</span> Нажмите на карту
+                    <span>📍</span> Нажмите на карту, чтобы оценить риск
                 </div>
             </div>
 
-            <!-- Правая панель -->
             <div class="info-panel">
-                <!-- Риск -->
-                <div class="info-card risk-card">
+                <div class="info-card">
                     <div class="card-header">
                         <span class="card-icon">⚠️</span>
                         <h3>Текущий риск</h3>
                     </div>
                     <div class="risk-value" id="risk-value">—</div>
-                    <div class="risk-details" id="risk-details">
+                    <div class="risk-details">
                         <div class="detail-item">
                             <span>🌡️ Температура</span>
                             <span id="temp">—</span>
@@ -54,19 +48,17 @@
                     </div>
                 </div>
 
-                <!-- Прогноз -->
-                <div class="info-card forecast-card">
+                <div class="info-card">
                     <div class="card-header">
                         <span class="card-icon">📈</span>
                         <h3>Прогноз</h3>
                     </div>
                     <div class="forecast-text" id="forecast-text">
-                        Выберите точку на карте
+                        Нажмите на карту
                     </div>
                 </div>
 
-                <!-- Маршруты -->
-                <div class="info-card route-card">
+                <div class="info-card">
                     <div class="card-header">
                         <span class="card-icon">🗺️</span>
                         <h3>Маршрут</h3>
