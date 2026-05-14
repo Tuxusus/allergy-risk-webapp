@@ -1,32 +1,22 @@
-from flask import Flask, render_template, request, jsonify
-import requests
+from concurrent.futures import ThreadPoolExecutor
 from statistics import mean
+from threading import Lock
+from flask import Flask, jsonify, render_template, request
+import requests
+import time
 
 app = Flask(__name__)
 
-ALLERGENS = {
-    "birch": {
-        "label": "Берёза",
-        "field": "birch_pollen",
-        "desc": "основной весенний аллерген"
-    },
-    "grass": {
-        "label": "Злаки",
-        "field": "grass_pollen",
-        "desc": "сезонный травяной аллерген"
-    },
-    "ragweed": {
-        "label": "Амброзия",
-        "field": "ragweed_pollen",
-        "desc": "высокоаллергенное растение"
-    }
-}
+WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
+AIR_API_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
+# Разумный набор точек по умолчанию для карты вокруг Москвы.
+# Их можно расширять позже без изменения фронтенда.
 MAP_POINTS = [
     {"name": "Москва", "lat": 55.7558, "lon": 37.6176},
     {"name": "Химки", "lat": 55.8970, "lon": 37.4297},
-    {"name": "Красногорск", "lat": 55.8310, "lon": 37.3300},
     {"name": "Зеленоград", "lat": 55.9825, "lon": 37.1814},
+    {"name": "Красногорск", "lat": 55.8310, "lon": 37.3300},
     {"name": "Мытищи", "lat": 55.9105, "lon": 37.7360},
     {"name": "Балашиха", "lat": 55.7963, "lon": 37.9382},
     {"name": "Люберцы", "lat": 55.6765, "lon": 37.8982},
@@ -34,40 +24,97 @@ MAP_POINTS = [
     {"name": "Подольск", "lat": 55.4311, "lon": 37.5455},
     {"name": "Жуковский", "lat": 55.5992, "lon": 38.1167},
     {"name": "Ногинск", "lat": 55.8686, "lon": 38.4418},
-    {"name": "Воскресенск", "lat": 55.3176, "lon": 38.6526},
-    {"name": "Серпухов", "lat": 54.9226, "lon": 37.4031},
-    {"name": "Дмитров", "lat": 56.3449, "lon": 37.5204}
 ]
+
+ALLERGENS = {
+    "birch": {
+        "label": "Берёза",
+        "field": "birch_pollen",
+        "desc": "основной весенний аллерген",
+    },
+    "grass": {
+        "label": "Злаки",
+        "field": "grass_pollen",
+        "desc": "сезонный травяной аллерген",
+    },
+    "ragweed": {
+        "label": "Амброзия",
+        "field": "ragweed_pollen",
+        "desc": "высокоаллергенное растение",
+    },
+}
+
+HTTP_HEADERS = {"User-Agent": "AllergyRiskMVP/1.0"}
+
+_CACHE = {}
+_CACHE_LOCK = Lock()
+
+
+def normalize_allergen(value: str) -> str:
+    return value if value in ALLERGENS else "birch"
+
+
+def cache_get(key):
+    now = time.time()
+    with _CACHE_LOCK:
+        item = _CACHE.get(key)
+        if not item:
+            return None
+        expires_at, payload = item
+        if expires_at <= now:
+            del _CACHE[key]
+            return None
+        return payload
+
+
+def cache_set(key, payload, ttl_seconds: int):
+    expires_at = time.time() + ttl_seconds
+    with _CACHE_LOCK:
+        _CACHE[key] = (expires_at, payload)
+
+
+def safe_float(value, default=None):
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def request_json(url: str, params: dict):
+    response = requests.get(url, params=params, timeout=15, headers=HTTP_HEADERS)
+    response.raise_for_status()
+    return response.json()
 
 
 def risk_bundle(score: int):
     if score < 25:
-        return {
-            "level": "Низкий",
-            "color": "#4FD08A",
-            "marker_value": 1
-        }
-    elif score < 50:
-        return {
-            "level": "Средний",
-            "color": "#B8D94B",
-            "marker_value": 2
-        }
-    elif score < 75:
-        return {
-            "level": "Высокий",
-            "color": "#F5A623",
-            "marker_value": 3
-        }
-    else:
-        return {
-            "level": "Очень высокий",
-            "color": "#E8505B",
-            "marker_value": 4
-        }
+        return {"level": "Низкий", "color": "#4FD08A", "marker_value": 1, "css": "low"}
+    if score < 50:
+        return {"level": "Средний", "color": "#B8D94B", "marker_value": 2, "css": "medium"}
+    if score < 75:
+        return {"level": "Высокий", "color": "#F5A623", "marker_value": 3, "css": "high"}
+    return {"level": "Очень высокий", "color": "#E8505B", "marker_value": 4, "css": "very-high"}
 
 
-def calc_score(allergen_value, pm25, aqi, wind_speed, humidity, temperature):
+def calc_score(allergen_value, pm25, aqi, wind_speed, humidity, temperature) -> int:
+    """
+    Эвристический score для MVP.
+    Не является медицинским предиктором, а лишь агрегирует:
+    - выбранную пыльцу,
+    - PM2.5 / AQI,
+    - ветер,
+    - влажность,
+    - температуру.
+    """
+    allergen_value = safe_float(allergen_value, 0.0) or 0.0
+    pm25 = safe_float(pm25, None)
+    aqi = safe_float(aqi, None)
+    wind_speed = safe_float(wind_speed, None)
+    humidity = safe_float(humidity, None)
+    temperature = safe_float(temperature, None)
+
     score = 0
 
     # Пыльца
@@ -80,7 +127,7 @@ def calc_score(allergen_value, pm25, aqi, wind_speed, humidity, temperature):
     elif allergen_value >= 5:
         score += 10
 
-    # Воздух
+    # Качество воздуха
     if pm25 is not None:
         if pm25 >= 35:
             score += 15
@@ -99,171 +146,252 @@ def calc_score(allergen_value, pm25, aqi, wind_speed, humidity, temperature):
             score += 8
         elif wind_speed >= 5:
             score += 4
+        elif wind_speed <= 2:
+            score -= 2
 
-    if humidity is not None and humidity < 40:
-        score += 6
+    if humidity is not None:
+        if humidity < 40:
+            score += 6
+        elif humidity >= 75:
+            score -= 4
 
-    if temperature is not None and temperature > 15:
-        score += 6
+    if temperature is not None:
+        if temperature > 15:
+            score += 6
+        elif temperature < 8:
+            score -= 2
 
-    return min(score, 100)
-
-
-def current_environment(lat, lon):
-    weather_url = (
-        f"https://api.open-meteo.com/v1/forecast"
-        f"?latitude={lat}&longitude={lon}"
-        f"&current=temperature_2m,relative_humidity_2m,wind_speed_10m"
-    )
-
-    air_url = (
-        f"https://air-quality-api.open-meteo.com/v1/air-quality"
-        f"?latitude={lat}&longitude={lon}"
-        f"&current=european_aqi,pm2_5,birch_pollen,grass_pollen,ragweed_pollen"
-    )
-
-    weather_resp = requests.get(weather_url, timeout=12)
-    air_resp = requests.get(air_url, timeout=12)
-
-    weather_resp.raise_for_status()
-    air_resp.raise_for_status()
-
-    weather_current = weather_resp.json().get("current", {})
-    air_current = air_resp.json().get("current", {})
-
-    return {
-        "temperature": weather_current.get("temperature_2m"),
-        "humidity": weather_current.get("relative_humidity_2m"),
-        "wind_speed": weather_current.get("wind_speed_10m"),
-        "aqi": air_current.get("european_aqi"),
-        "pm25": air_current.get("pm2_5"),
-        "birch_pollen": air_current.get("birch_pollen") or 0,
-        "grass_pollen": air_current.get("grass_pollen") or 0,
-        "ragweed_pollen": air_current.get("ragweed_pollen") or 0
-    }
+    return max(0, min(int(round(score)), 100))
 
 
-def forecast_environment(lat, lon):
-    weather_url = (
-        f"https://api.open-meteo.com/v1/forecast"
-        f"?latitude={lat}&longitude={lon}"
-        f"&current=temperature_2m"
-        f"&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
-        f"&forecast_days=1"
-    )
-
-    air_url = (
-        f"https://air-quality-api.open-meteo.com/v1/air-quality"
-        f"?latitude={lat}&longitude={lon}"
-        f"&hourly=european_aqi,pm2_5,birch_pollen,grass_pollen,ragweed_pollen"
-        f"&forecast_days=1"
-    )
-
-    weather_resp = requests.get(weather_url, timeout=12)
-    air_resp = requests.get(air_url, timeout=12)
-
-    weather_resp.raise_for_status()
-    air_resp.raise_for_status()
-
-    weather_json = weather_resp.json()
-    air_json = air_resp.json()
-
-    weather_hourly = weather_json.get("hourly", {})
-    air_hourly = air_json.get("hourly", {})
-
-    times = weather_hourly.get("time", [])
-    start_index = 0
-
-    current_time = weather_json.get("current", {}).get("time")
-    if current_time in times:
-        start_index = times.index(current_time)
-
-    end_index = min(start_index + 6, len(times))
-
-    return {
-        "temperature": weather_hourly.get("temperature_2m", [])[start_index:end_index],
-        "humidity": weather_hourly.get("relative_humidity_2m", [])[start_index:end_index],
-        "wind_speed": weather_hourly.get("wind_speed_10m", [])[start_index:end_index],
-        "aqi": air_hourly.get("european_aqi", [])[start_index:end_index],
-        "pm25": air_hourly.get("pm2_5", [])[start_index:end_index],
-        "birch_pollen": air_hourly.get("birch_pollen", [])[start_index:end_index],
-        "grass_pollen": air_hourly.get("grass_pollen", [])[start_index:end_index],
-        "ragweed_pollen": air_hourly.get("ragweed_pollen", [])[start_index:end_index]
-    }
-
-
-def build_forecast_text(current_score, future_scores, allergen_label):
+def build_forecast_text(current_score: int, future_scores: list, allergen_label: str) -> str:
     if not future_scores:
-        return f"{allergen_label}: недостаточно данных для прогноза"
+        return f"{allergen_label}: недостаточно данных для прогноза на ближайшие 6 часов"
 
     future_avg = round(mean(future_scores))
     future_max = max(future_scores)
+    future_min = min(future_scores)
 
     if future_max >= current_score + 15:
         future_level = risk_bundle(future_max)["level"]
         return f"{allergen_label}: в ближайшие 6 часов ожидается рост риска до уровня «{future_level}»"
-    elif future_avg <= current_score - 10:
+    if future_min <= current_score - 10 and future_avg <= current_score - 6:
         return f"{allergen_label}: в ближайшие 6 часов ожидается снижение риска"
-    else:
-        return f"{allergen_label}: в ближайшие 6 часов значительных изменений не ожидается"
+    return f"{allergen_label}: в ближайшие 6 часов значительных изменений не ожидается"
 
 
-def point_payload(lat, lon, allergen_key, with_forecast=True):
-    allergen_info = ALLERGENS.get(allergen_key, ALLERGENS["birch"])
+def get_point_current_source(lat: float, lon: float):
+    cache_key = ("point-current", round(lat, 4), round(lon, 4))
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    weather_params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
+        "timezone": "auto",
+    }
+    air_params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current": "european_aqi,pm2_5,birch_pollen,grass_pollen,ragweed_pollen",
+        "timezone": "auto",
+    }
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        weather_future = executor.submit(request_json, WEATHER_API_URL, weather_params)
+        air_future = executor.submit(request_json, AIR_API_URL, air_params)
+        payload = {
+            "weather": weather_future.result(),
+            "air": air_future.result(),
+        }
+
+    cache_set(cache_key, payload, ttl_seconds=300)
+    return payload
+
+
+def get_point_full_source(lat: float, lon: float):
+    cache_key = ("point-full", round(lat, 4), round(lon, 4))
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    weather_params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
+        "hourly": "temperature_2m,relative_humidity_2m,wind_speed_10m",
+        "forecast_days": 1,
+        "timezone": "auto",
+    }
+    air_params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current": "european_aqi,pm2_5,birch_pollen,grass_pollen,ragweed_pollen",
+        "hourly": "european_aqi,pm2_5,birch_pollen,grass_pollen,ragweed_pollen",
+        "forecast_days": 1,
+        "timezone": "auto",
+    }
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        weather_future = executor.submit(request_json, WEATHER_API_URL, weather_params)
+        air_future = executor.submit(request_json, AIR_API_URL, air_params)
+        payload = {
+            "weather": weather_future.result(),
+            "air": air_future.result(),
+        }
+
+    cache_set(cache_key, payload, ttl_seconds=900)
+    return payload
+
+
+def get_batch_map_source(points: list):
+    cache_key = (
+        "map-batch",
+        tuple((round(point["lat"], 4), round(point["lon"], 4)) for point in points),
+    )
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    latitudes = ",".join(str(point["lat"]) for point in points)
+    longitudes = ",".join(str(point["lon"]) for point in points)
+
+    weather_params = {
+        "latitude": latitudes,
+        "longitude": longitudes,
+        "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
+    }
+    air_params = {
+        "latitude": latitudes,
+        "longitude": longitudes,
+        "current": "european_aqi,pm2_5,birch_pollen,grass_pollen,ragweed_pollen",
+    }
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        weather_future = executor.submit(request_json, WEATHER_API_URL, weather_params)
+        air_future = executor.submit(request_json, AIR_API_URL, air_params)
+        weather_json = weather_future.result()
+        air_json = air_future.result()
+
+    weather_items = weather_json if isinstance(weather_json, list) else [weather_json]
+    air_items = air_json if isinstance(air_json, list) else [air_json]
+
+    data = []
+    for index, point in enumerate(points):
+        weather_item = weather_items[index] if index < len(weather_items) else {}
+        air_item = air_items[index] if index < len(air_items) else {}
+
+        data.append(
+            {
+                "name": point["name"],
+                "lat": point["lat"],
+                "lon": point["lon"],
+                "temperature": ((weather_item or {}).get("current") or {}).get("temperature_2m"),
+                "humidity": ((weather_item or {}).get("current") or {}).get("relative_humidity_2m"),
+                "wind_speed": ((weather_item or {}).get("current") or {}).get("wind_speed_10m"),
+                "aqi": ((air_item or {}).get("current") or {}).get("european_aqi"),
+                "pm25": ((air_item or {}).get("current") or {}).get("pm2_5"),
+                "birch_pollen": ((air_item or {}).get("current") or {}).get("birch_pollen") or 0,
+                "grass_pollen": ((air_item or {}).get("current") or {}).get("grass_pollen") or 0,
+                "ragweed_pollen": ((air_item or {}).get("current") or {}).get("ragweed_pollen") or 0,
+            }
+        )
+
+    cache_set(cache_key, data, ttl_seconds=300)
+    return data
+
+
+def calculate_future_scores(weather_json: dict, air_json: dict, allergen_field: str, hours: int = 6) -> list:
+    weather_hourly = weather_json.get("hourly", {}) or {}
+    air_hourly = air_json.get("hourly", {}) or {}
+
+    times = weather_hourly.get("time", []) or []
+    current_time = (weather_json.get("current") or {}).get("time")
+
+    start_index = 0
+    if current_time in times:
+        start_index = times.index(current_time) + 1
+
+    end_index = min(start_index + hours, len(times))
+    if start_index >= end_index:
+        return []
+
+    def pick(source: dict, key: str, index: int):
+        values = source.get(key, []) or []
+        if index < len(values):
+            return values[index]
+        return None
+
+    scores = []
+    for idx in range(start_index, end_index):
+        score = calc_score(
+            allergen_value=pick(air_hourly, allergen_field, idx),
+            pm25=pick(air_hourly, "pm2_5", idx),
+            aqi=pick(air_hourly, "european_aqi", idx),
+            wind_speed=pick(weather_hourly, "wind_speed_10m", idx),
+            humidity=pick(weather_hourly, "relative_humidity_2m", idx),
+            temperature=pick(weather_hourly, "temperature_2m", idx),
+        )
+        scores.append(score)
+
+    return scores
+
+
+def point_payload(lat: float, lon: float, allergen_key: str, with_forecast: bool = True):
+    allergen_key = normalize_allergen(allergen_key)
+    allergen_info = ALLERGENS[allergen_key]
     allergen_field = allergen_info["field"]
-    allergen_label = allergen_info["label"]
 
-    env = current_environment(lat, lon)
+    source = get_point_full_source(lat, lon) if with_forecast else get_point_current_source(lat, lon)
+    weather_json = source["weather"]
+    air_json = source["air"]
 
-    allergen_value = env.get(allergen_field, 0)
-    current_score = calc_score(
+    weather_current = weather_json.get("current", {}) or {}
+    air_current = air_json.get("current", {}) or {}
+
+    allergen_value = safe_float(air_current.get(allergen_field), 0.0) or 0.0
+    aqi = safe_float(air_current.get("european_aqi"), None)
+    pm25 = safe_float(air_current.get("pm2_5"), None)
+    wind_speed = safe_float(weather_current.get("wind_speed_10m"), None)
+    humidity = safe_float(weather_current.get("relative_humidity_2m"), None)
+    temperature = safe_float(weather_current.get("temperature_2m"), None)
+
+    score = calc_score(
         allergen_value=allergen_value,
-        pm25=env.get("pm25"),
-        aqi=env.get("aqi"),
-        wind_speed=env.get("wind_speed"),
-        humidity=env.get("humidity"),
-        temperature=env.get("temperature")
+        pm25=pm25,
+        aqi=aqi,
+        wind_speed=wind_speed,
+        humidity=humidity,
+        temperature=temperature,
     )
 
-    rb = risk_bundle(current_score)
+    bundle = risk_bundle(score)
+    forecast_text = f"{allergen_info['label']}: прогноз отключён"
 
-    forecast_text = f"{allergen_label}: расчёт прогноза недоступен"
     if with_forecast:
-        future = forecast_environment(lat, lon)
-        future_scores = []
-
-        allergen_forecast_values = future.get(allergen_field, [])
-
-        for i in range(len(allergen_forecast_values)):
-            score = calc_score(
-                allergen_value=allergen_forecast_values[i],
-                pm25=future.get("pm25", [None] * len(allergen_forecast_values))[i] if i < len(future.get("pm25", [])) else None,
-                aqi=future.get("aqi", [None] * len(allergen_forecast_values))[i] if i < len(future.get("aqi", [])) else None,
-                wind_speed=future.get("wind_speed", [None] * len(allergen_forecast_values))[i] if i < len(future.get("wind_speed", [])) else None,
-                humidity=future.get("humidity", [None] * len(allergen_forecast_values))[i] if i < len(future.get("humidity", [])) else None,
-                temperature=future.get("temperature", [None] * len(allergen_forecast_values))[i] if i < len(future.get("temperature", [])) else None
-            )
-            future_scores.append(score)
-
-        forecast_text = build_forecast_text(current_score, future_scores, allergen_label)
+        future_scores = calculate_future_scores(weather_json, air_json, allergen_field, hours=6)
+        forecast_text = build_forecast_text(score, future_scores, allergen_info["label"])
 
     return {
-        "lat": lat,
-        "lon": lon,
-        "temperature": env.get("temperature"),
-        "humidity": env.get("humidity"),
-        "wind_speed": env.get("wind_speed"),
-        "aqi": env.get("aqi"),
-        "pm25": env.get("pm25"),
+        "lat": round(lat, 6),
+        "lon": round(lon, 6),
+        "temperature": temperature,
+        "humidity": humidity,
+        "wind_speed": wind_speed,
+        "aqi": aqi,
+        "pm25": pm25,
         "allergen": allergen_key,
-        "allergen_label": allergen_label,
+        "allergen_label": allergen_info["label"],
         "allergen_desc": allergen_info["desc"],
-        "allergen_value": allergen_value,
-        "risk": rb["level"],
-        "score": current_score,
-        "color": rb["color"],
-        "marker_value": rb["marker_value"],
-        "forecast": forecast_text
+        "allergen_value": round(allergen_value, 1),
+        "risk": bundle["level"],
+        "score": score,
+        "color": bundle["color"],
+        "marker_value": bundle["marker_value"],
+        "risk_css": bundle["css"],
+        "forecast": forecast_text,
     }
 
 
@@ -274,47 +402,77 @@ def index():
 
 @app.route("/api/risk", methods=["POST"])
 def api_risk():
-    data = request.get_json(force=True)
-    lat = float(data.get("lat"))
-    lon = float(data.get("lon"))
-    allergen = data.get("allergen", "birch")
+    data = request.get_json(silent=True) or {}
+    lat = data.get("lat")
+    lon = data.get("lon")
+    allergen = normalize_allergen(data.get("allergen", "birch"))
+    with_forecast = bool(data.get("with_forecast", True))
+
+    if lat is None or lon is None:
+        return jsonify({"error": "Нужно передать lat и lon"}), 400
 
     try:
-        result = point_payload(lat, lon, allergen, with_forecast=True)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError):
+        return jsonify({"error": "lat и lon должны быть числами"}), 400
+
+    try:
+        return jsonify(point_payload(lat, lon, allergen, with_forecast=with_forecast))
+    except requests.RequestException:
+        return jsonify({"error": "Не удалось получить данные Open-Meteo"}), 502
+    except Exception as exc:
+        return jsonify({"error": f"Внутренняя ошибка сервера: {exc}"}), 500
 
 
-@app.route("/api/map-markers")
+@app.route("/api/map-markers", methods=["GET"])
 def api_map_markers():
-    allergen = request.args.get("allergen", "birch")
+    allergen = normalize_allergen(request.args.get("allergen", "birch"))
+    allergen_info = ALLERGENS[allergen]
+    allergen_field = allergen_info["field"]
 
-    markers = []
-    errors = []
+    try:
+        source_rows = get_batch_map_source(MAP_POINTS)
+        markers = []
 
-    for point in MAP_POINTS:
-        try:
-            data = point_payload(point["lat"], point["lon"], allergen, with_forecast=False)
-            markers.append({
-                "name": point["name"],
-                "lat": point["lat"],
-                "lon": point["lon"],
-                "risk": data["risk"],
-                "score": data["score"],
-                "color": data["color"],
-                "marker_value": data["marker_value"],
-                "allergen_label": data["allergen_label"],
-                "allergen_value": data["allergen_value"]
-            })
-        except Exception as e:
-            errors.append({"name": point["name"], "error": str(e)})
+        for row in source_rows:
+            allergen_value = row.get(allergen_field, 0)
+            score = calc_score(
+                allergen_value=allergen_value,
+                pm25=row.get("pm25"),
+                aqi=row.get("aqi"),
+                wind_speed=row.get("wind_speed"),
+                humidity=row.get("humidity"),
+                temperature=row.get("temperature"),
+            )
+            bundle = risk_bundle(score)
+            markers.append(
+                {
+                    "name": row["name"],
+                    "lat": row["lat"],
+                    "lon": row["lon"],
+                    "risk": bundle["level"],
+                    "score": score,
+                    "color": bundle["color"],
+                    "marker_value": bundle["marker_value"],
+                    "allergen": allergen,
+                    "allergen_label": allergen_info["label"],
+                    "allergen_value": round(safe_float(allergen_value, 0.0) or 0.0, 1),
+                }
+            )
 
-    return jsonify({
-        "allergen": allergen,
-        "markers": markers,
-        "errors": errors
-    })
+        return jsonify(
+            {
+                "allergen": allergen,
+                "allergen_label": allergen_info["label"],
+                "count": len(markers),
+                "markers": markers,
+            }
+        )
+    except requests.RequestException:
+        return jsonify({"error": "Не удалось получить карту маркеров из Open-Meteo", "markers": []}), 502
+    except Exception as exc:
+        return jsonify({"error": f"Ошибка построения карты маркеров: {exc}", "markers": []}), 500
 
 
 if __name__ == "__main__":

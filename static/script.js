@@ -1,140 +1,206 @@
-let myMap;
-let currentRoute = null;
-let activePlacemark = null;
-let markerObjects = [];
+const DEFAULT_CENTER = [55.7558, 37.6176];
+const DEFAULT_FROM = "Москва, Красная площадь";
+const DEFAULT_TO = "Москва, Парк Горького";
+
+let myMap = null;
 let currentAllergen = "birch";
+let currentRoute = null;
+let detailPlacemark = null;
+let markerObjects = [];
+let pinLayoutClass = null;
+let lastDetailCoords = DEFAULT_CENTER.slice();
 
-const centerCoords = [55.7558, 37.6176];
-
-function riskCssClass(risk) {
-    if (risk === "Низкий") return "low";
-    if (risk === "Средний") return "medium";
-    if (risk === "Высокий") return "high";
+function riskCssClass(level) {
+    if (level === "Низкий") return "low";
+    if (level === "Средний") return "medium";
+    if (level === "Высокий") return "high";
     return "very-high";
+}
+
+function formatMetric(value, suffix = "", digits = 1) {
+    if (value === null || value === undefined || value === "") {
+        return "—";
+    }
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+        return "—";
+    }
+    return `${numeric.toFixed(digits).replace(".0", "")}${suffix}`;
+}
+
+function showMapLoading(text) {
+    const block = document.getElementById("map-loading");
+    block.textContent = text || "Загрузка…";
+    block.classList.remove("hidden");
+}
+
+function hideMapLoading() {
+    document.getElementById("map-loading").classList.add("hidden");
+}
+
+function setMarkerStatus(text) {
+    document.getElementById("marker-status").textContent = text;
 }
 
 function setPointInfo(data) {
     const riskBox = document.getElementById("point-risk");
-    riskBox.textContent = data.risk;
+    riskBox.textContent = data.risk || "—";
     riskBox.className = `risk-badge risk-${riskCssClass(data.risk)}`;
 
-    document.getElementById("point-temp").textContent =
-        data.temperature !== null && data.temperature !== undefined ? `${data.temperature}°C` : "—";
-
-    document.getElementById("point-wind").textContent =
-        data.wind_speed !== null && data.wind_speed !== undefined ? `${data.wind_speed} м/с` : "—";
-
-    document.getElementById("point-humidity").textContent =
-        data.humidity !== null && data.humidity !== undefined ? `${data.humidity}%` : "—";
-
-    document.getElementById("point-allergen-value").textContent =
-        data.allergen_value !== null && data.allergen_value !== undefined ? data.allergen_value : "—";
-
-    document.getElementById("point-allergen").textContent = data.allergen_label;
-    document.getElementById("point-score").textContent = data.score;
-    document.getElementById("forecast-text").textContent = data.forecast;
+    document.getElementById("point-temp").textContent = formatMetric(data.temperature, "°C");
+    document.getElementById("point-wind").textContent = formatMetric(data.wind_speed, " м/с");
+    document.getElementById("point-humidity").textContent = formatMetric(data.humidity, "%", 0);
+    document.getElementById("point-allergen-value").textContent = formatMetric(data.allergen_value, "", 1);
+    document.getElementById("point-allergen").textContent = data.allergen_label || "—";
+    document.getElementById("point-score").textContent = data.score ?? "—";
+    document.getElementById("point-aqi").textContent = formatMetric(data.aqi, "", 0);
+    document.getElementById("point-pm25").textContent = formatMetric(data.pm25, " мкг/м³", 1);
+    document.getElementById("forecast-text").textContent = data.forecast || "Нет данных прогноза";
 }
 
-async function fetchRisk(lat, lon) {
+async function fetchRisk(lat, lon, options = {}) {
+    const withForecast = options.withForecast !== false;
+
     const response = await fetch("/api/risk", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            lat,
-            lon,
-            allergen: currentAllergen
+            lat: Number(lat),
+            lon: Number(lon),
+            allergen: currentAllergen,
+            with_forecast: withForecast
         })
     });
 
     const data = await response.json();
-
     if (!response.ok) {
-        throw new Error(data.error || "Ошибка загрузки данных");
+        throw new Error(data.error || "Ошибка загрузки данных точки");
     }
 
     return data;
 }
 
 async function fetchMapMarkers() {
-    const response = await fetch(`/api/map-markers?allergen=${currentAllergen}`);
+    const response = await fetch(`/api/map-markers?allergen=${encodeURIComponent(currentAllergen)}`);
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data.error || "Ошибка загрузки карты");
+        throw new Error(data.error || "Ошибка загрузки маркеров");
     }
 
-    return data.markers;
+    return data;
+}
+
+function getPinLayout() {
+    if (!pinLayoutClass) {
+        pinLayoutClass = ymaps.templateLayoutFactory.createClass(`
+            <div class="custom-pin">
+                <div class="custom-pin__shape" style="background: {{ properties.iconColor }};"></div>
+                <div class="custom-pin__label">{{ properties.iconText }}</div>
+            </div>
+        `);
+    }
+
+    return pinLayoutClass;
 }
 
 function clearMarkers() {
-    markerObjects.forEach(obj => myMap.geoObjects.remove(obj));
+    markerObjects.forEach((marker) => myMap.geoObjects.remove(marker));
     markerObjects = [];
 }
 
-function markerLayout() {
-    return ymaps.templateLayoutFactory.createClass(`
-        <div class="custom-pin-wrap">
-            <div class="custom-pin-head" style="background: {{ properties.iconColor }};">
-                <div class="custom-pin-text">{{ properties.iconText }}</div>
-            </div>
-        </div>
-    `);
+function setDetailPlacemark(coords) {
+    if (detailPlacemark) {
+        myMap.geoObjects.remove(detailPlacemark);
+    }
+
+    detailPlacemark = new ymaps.Placemark(coords, {}, {
+        preset: "islands#redCircleDotIcon"
+    });
+
+    myMap.geoObjects.add(detailPlacemark);
+}
+
+function createMarker(marker) {
+    const placemark = new ymaps.Placemark(
+        [marker.lat, marker.lon],
+        {
+            hintContent: `${marker.name}: ${marker.risk}`,
+            balloonContent: `
+                <strong>${marker.name}</strong><br>
+                Аллерген: ${marker.allergen_label}<br>
+                Уровень риска: ${marker.risk}<br>
+                Индекс: ${marker.score}<br>
+                Значение пыльцы: ${marker.allergen_value}
+            `,
+            iconText: marker.marker_value,
+            iconColor: marker.color
+        },
+        {
+            iconLayout: getPinLayout(),
+            iconOffset: [-23, -58],
+            iconShape: {
+                type: "Rectangle",
+                coordinates: [[-23, -58], [23, 0]]
+            },
+            hideIconOnBalloonOpen: false,
+            openBalloonOnClick: true
+        }
+    );
+
+    placemark.events.add("click", async function (event) {
+        if (event && typeof event.stopPropagation === "function") {
+            event.stopPropagation();
+        }
+        await selectPoint(marker.lat, marker.lon, { pan: false });
+    });
+
+    return placemark;
 }
 
 async function loadMarkers() {
+    showMapLoading("Загрузка маркеров…");
+    setMarkerStatus("Загрузка карты аллергенов…");
     clearMarkers();
 
-    const PinLayout = markerLayout();
-    const markers = await fetchMapMarkers();
+    try {
+        const payload = await fetchMapMarkers();
+        const markers = payload.markers || [];
 
-    markers.forEach(marker => {
-        const placemark = new ymaps.Placemark(
-            [marker.lat, marker.lon],
-            {
-                hintContent: `${marker.name}: ${marker.risk}`,
-                balloonContent: `
-                    <strong>${marker.name}</strong><br>
-                    Аллерген: ${marker.allergen_label}<br>
-                    Уровень риска: ${marker.risk}<br>
-                    Индекс: ${marker.score}
-                `,
-                iconText: marker.marker_value,
-                iconColor: marker.color
-            },
-            {
-                iconLayout: PinLayout,
-                iconShape: {
-                    type: "Rectangle",
-                    coordinates: [[-26, -52], [26, 4]]
-                },
-                hideIconOnBalloonOpen: false
-            }
-        );
-
-        placemark.events.add("click", async () => {
-            const fullData = await fetchRisk(marker.lat, marker.lon);
-            setPointInfo(fullData);
-
-            if (activePlacemark) {
-                myMap.geoObjects.remove(activePlacemark);
-            }
-
-            activePlacemark = new ymaps.Placemark(
-                [marker.lat, marker.lon],
-                {},
-                {
-                    preset: "islands#redDotIcon"
-                }
-            );
-
-            myMap.geoObjects.add(activePlacemark);
+        markers.forEach((marker) => {
+            const placemark = createMarker(marker);
+            markerObjects.push(placemark);
+            myMap.geoObjects.add(placemark);
         });
 
-        myMap.geoObjects.add(placemark);
-        markerObjects.push(placemark);
-    });
+        setMarkerStatus(`Загружено маркеров: ${markers.length}. Активный аллерген: ${payload.allergen_label}.`);
+    } catch (error) {
+        console.error(error);
+        setMarkerStatus("Не удалось загрузить маркеры карты. Проверьте соединение и повторите попытку.");
+    } finally {
+        hideMapLoading();
+    }
+}
+
+async function selectPoint(lat, lon, options = {}) {
+    try {
+        const data = await fetchRisk(lat, lon, { withForecast: true });
+        lastDetailCoords = [Number(lat), Number(lon)];
+        setPointInfo(data);
+        setDetailPlacemark([Number(lat), Number(lon)]);
+
+        if (options.pan) {
+            myMap.panTo([Number(lat), Number(lon)], {
+                delay: 0,
+                duration: 250
+            });
+        }
+    } catch (error) {
+        console.error(error);
+        document.getElementById("forecast-text").textContent = "Не удалось загрузить подробности по выбранной точке";
+    }
 }
 
 function geocodeToCoords(address) {
@@ -157,57 +223,96 @@ function geocodeToCoords(address) {
 
 function buildYRoute(points) {
     return new Promise((resolve, reject) => {
-        ymaps.route(points).then(resolve, reject);
+        ymaps.route(points, {
+            mapStateAutoApply: true
+        }).then(resolve, reject);
     });
+}
+
+function styleRoute(route) {
+    try {
+        route.getPaths().options.set({
+            strokeWidth: 5,
+            opacity: 0.92,
+            strokeColor: "#2b73ff"
+        });
+    } catch (error) {
+        console.warn("Не удалось применить стиль маршрута", error);
+    }
 }
 
 async function chooseSaferWaypoint(fromCoords, toCoords) {
     const midLat = (fromCoords[0] + toCoords[0]) / 2;
     const midLon = (fromCoords[1] + toCoords[1]) / 2;
-    const offset = 0.08;
+    const offsetLat = 0.08;
+    const offsetLon = 0.08;
 
     const candidates = [
-        [midLat, midLon],
-        [midLat + offset, midLon],
-        [midLat - offset, midLon],
-        [midLat, midLon + offset],
-        [midLat, midLon - offset]
+        { name: "center", coords: [midLat, midLon] },
+        { name: "north", coords: [midLat + offsetLat, midLon] },
+        { name: "south", coords: [midLat - offsetLat, midLon] },
+        { name: "east", coords: [midLat, midLon + offsetLon] },
+        { name: "west", coords: [midLat, midLon - offsetLon] }
     ];
 
-    let bestPoint = null;
+    const results = await Promise.all(
+        candidates.map(async (candidate) => {
+            try {
+                const data = await fetchRisk(candidate.coords[0], candidate.coords[1], {
+                    withForecast: false
+                });
 
-    for (const coords of candidates) {
-        try {
-            const data = await fetchRisk(coords[0], coords[1]);
-            if (!bestPoint || data.score < bestPoint.score) {
-                bestPoint = {
-                    coords,
+                return {
+                    ...candidate,
                     score: data.score,
                     risk: data.risk
                 };
+            } catch (error) {
+                console.error("Ошибка при расчёте кандидата маршрута:", error);
+                return {
+                    ...candidate,
+                    score: Number.POSITIVE_INFINITY,
+                    risk: "—"
+                };
             }
-        } catch (e) {
-            console.error("Ошибка точки маршрута:", e);
-        }
+        })
+    );
+
+    const valid = results.filter((item) => Number.isFinite(item.score));
+    if (!valid.length) {
+        return null;
     }
 
-    return bestPoint;
+    const centerCandidate = valid.find((item) => item.name === "center") || valid[0];
+    const bestCandidate = [...valid].sort((a, b) => a.score - b.score)[0];
+
+    return {
+        center: centerCandidate,
+        best: bestCandidate,
+        shouldUse: bestCandidate.name !== "center" && bestCandidate.score + 5 < centerCandidate.score
+    };
 }
 
 async function buildRoute() {
-    const from = document.getElementById("route-from").value.trim();
-    const to = document.getElementById("route-to").value.trim();
+    let from = document.getElementById("route-from").value.trim();
+    let to = document.getElementById("route-to").value.trim();
+
     const routeRiskBox = document.getElementById("route-risk");
     const routeDetails = document.getElementById("route-details");
 
-    if (!from || !to) {
-        alert("Введите обе точки маршрута");
-        return;
+    if (!from) {
+        from = DEFAULT_FROM;
+        document.getElementById("route-from").value = from;
     }
 
-    routeDetails.textContent = "Построение маршрута...";
+    if (!to) {
+        to = DEFAULT_TO;
+        document.getElementById("route-to").value = to;
+    }
+
     routeRiskBox.textContent = "—";
     routeRiskBox.className = "route-risk-box";
+    routeDetails.textContent = "Построение маршрута…";
 
     if (currentRoute) {
         myMap.geoObjects.remove(currentRoute);
@@ -215,97 +320,109 @@ async function buildRoute() {
     }
 
     try {
-        const fromCoords = await geocodeToCoords(from);
-        const toCoords = await geocodeToCoords(to);
-        const waypoint = await chooseSaferWaypoint(fromCoords, toCoords);
+        const [fromCoords, toCoords] = await Promise.all([
+            geocodeToCoords(from),
+            geocodeToCoords(to)
+        ]);
+
+        const [destinationRisk, waypointPlan] = await Promise.all([
+            fetchRisk(toCoords[0], toCoords[1], { withForecast: false }),
+            chooseSaferWaypoint(fromCoords, toCoords)
+        ]);
 
         let routePoints = [fromCoords, toCoords];
-        if (waypoint && waypoint.score < 70) {
-            routePoints = [fromCoords, waypoint.coords, toCoords];
+        let usedWaypoint = null;
+
+        if (waypointPlan && waypointPlan.shouldUse && waypointPlan.best) {
+            routePoints = [
+                fromCoords,
+                { type: "viaPoint", point: waypointPlan.best.coords },
+                toCoords
+            ];
+            usedWaypoint = waypointPlan.best;
         }
 
-        currentRoute = await buildYRoute(routePoints);
-        myMap.geoObjects.add(currentRoute);
+        try {
+            currentRoute = await buildYRoute(routePoints);
+        } catch (routeError) {
+            console.warn("Маршрут с промежуточной точкой не построился, пробуем прямой.", routeError);
+            currentRoute = await buildYRoute([fromCoords, toCoords]);
+            usedWaypoint = null;
+        }
 
-        const destinationRisk = await fetchRisk(toCoords[0], toCoords[1]);
+        styleRoute(currentRoute);
+        myMap.geoObjects.add(currentRoute);
 
         routeRiskBox.textContent = destinationRisk.risk;
         routeRiskBox.className = `route-risk-box route-${riskCssClass(destinationRisk.risk)}`;
 
-        let extraText = "Маршрут построен";
-        if (waypoint && waypoint.score < 70) {
-            extraText = "Маршрут построен через более безопасную промежуточную точку";
-        }
-
-        routeDetails.innerHTML = `
-            ${extraText}<br>
+        let detailsHtml = `
             Длина: ${currentRoute.getHumanLength()}<br>
-            Время: ${currentRoute.getHumanTime()}
+            Время: ${currentRoute.getHumanTime()}<br>
+            Оценка маршрута показана по точке назначения.
         `;
-    } catch (error) {
-        console.error(error);
-        routeDetails.textContent = "Не удалось построить маршрут. Проверьте адреса.";
-    }
-}
 
-async function handleMapClick(coords) {
-    const lat = parseFloat(coords[0].toFixed(6));
-    const lon = parseFloat(coords[1].toFixed(6));
-
-    try {
-        const data = await fetchRisk(lat, lon);
-        setPointInfo(data);
-
-        if (activePlacemark) {
-            myMap.geoObjects.remove(activePlacemark);
+        if (usedWaypoint) {
+            detailsHtml = `
+                Маршрут построен через более безопасную промежуточную зону.<br>
+                Промежуточный риск: ${usedWaypoint.risk} (индекс ${usedWaypoint.score}).<br>
+                ${detailsHtml}
+            `;
+        } else if (waypointPlan && waypointPlan.center) {
+            detailsHtml = `
+                Прямой маршрут оставлен без обхода: безопасный путь не дал заметного выигрыша по индексу.<br>
+                ${detailsHtml}
+            `;
         }
 
-        activePlacemark = new ymaps.Placemark(
-            [lat, lon],
-            {},
-            {
-                preset: "islands#redDotIcon"
-            }
-        );
-
-        myMap.geoObjects.add(activePlacemark);
+        routeDetails.innerHTML = detailsHtml;
     } catch (error) {
         console.error(error);
+        routeDetails.textContent = "Не удалось построить маршрут. Проверьте адреса и повторите попытку.";
     }
 }
 
 function bindAllergenButtons() {
-    document.querySelectorAll(".allergen-item").forEach(btn => {
-        btn.addEventListener("click", async () => {
-            document.querySelectorAll(".allergen-item").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
+    document.querySelectorAll(".allergen-item").forEach((button) => {
+        button.addEventListener("click", async function () {
+            if (button.dataset.allergen === currentAllergen) {
+                return;
+            }
 
-            currentAllergen = btn.dataset.allergen;
+            document.querySelectorAll(".allergen-item").forEach((item) => item.classList.remove("active"));
+            button.classList.add("active");
+
+            currentAllergen = button.dataset.allergen;
+
             await loadMarkers();
-
-            const data = await fetchRisk(centerCoords[0], centerCoords[1]);
-            setPointInfo(data);
+            await selectPoint(lastDetailCoords[0], lastDetailCoords[1], { pan: false });
         });
     });
 }
 
 function init() {
     myMap = new ymaps.Map("map", {
-        center: centerCoords,
+        center: DEFAULT_CENTER,
         zoom: 9,
         controls: ["zoomControl", "geolocationControl", "fullscreenControl"]
     });
 
-    myMap.events.add("click", function (e) {
-        handleMapClick(e.get("coords"));
+    myMap.events.add("click", function (event) {
+        const coords = event.get("coords");
+        selectPoint(coords[0], coords[1], { pan: false });
     });
 
     bindAllergenButtons();
 
     document.getElementById("build-route-btn").addEventListener("click", buildRoute);
 
-    loadMarkers();
-    fetchRisk(centerCoords[0], centerCoords[1]).then(setPointInfo);
+    Promise.all([
+        loadMarkers(),
+        selectPoint(DEFAULT_CENTER[0], DEFAULT_CENTER[1], { pan: false })
+    ]).catch((error) => {
+        console.error("Ошибка первичной загрузки:", error);
+        setMarkerStatus("Первичная загрузка завершилась с ошибкой. Попробуйте обновить страницу.");
+    });
 }
 
 ymaps.ready(init);
