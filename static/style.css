@@ -1,373 +1,376 @@
 * {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-    background: linear-gradient(135deg, #e0f2e9 0%, #b8dfc6 30%, #6fbf8a 60%, #2d6a4f 100%);
-    min-height: 100vh;
-    position: relative;
+    background: #eef3f7;
+    color: #1f2937;
+    font-family: Arial, sans-serif;
 }
 
-/* Анимированные переливы фона */
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.15), rgba(0, 0, 0, 0.05));
-    pointer-events: none;
-    z-index: 0;
+.page {
+    padding: 24px 28px;
 }
 
-.app {
-    position: relative;
-    z-index: 1;
-    max-width: 1600px;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
-}
-
-/* Шапка */
-.top-bar {
+.page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 28px;
-    padding: 0 8px;
+    margin-bottom: 18px;
 }
 
-.logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.logo-icon {
-    font-size: 36px;
-    filter: drop-shadow(0 0 15px rgba(46, 125, 50, 0.5));
-    animation: leafFloat 4s ease-in-out infinite;
-}
-
-@keyframes leafFloat {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-5px) rotate(5deg); }
-}
-
-.logo-text {
-    font-size: 28px;
-    font-weight: 900;
-    background: linear-gradient(135deg, #0d3b0d, #1b5e20, #2e7d32);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -0.5px;
-    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.15);
-    position: relative;
-}
-
-/* Добавляем тёмный ободок вокруг текста */
-.logo-text::before {
-    content: attr(data-text);
-    position: absolute;
-    left: 0;
-    top: 0;
-    z-index: -1;
-    -webkit-text-stroke: 2px rgba(13, 59, 13, 0.3);
-    background: none;
-    -webkit-background-clip: unset;
-}
-
-.badge {
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(8px);
-    padding: 6px 14px;
-    border-radius: 40px;
-    font-size: 12px;
+.page-header h1 {
+    font-size: 26px;
+    color: #2891d6;
     font-weight: 700;
-    color: #0d3b0d;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Основной контейнер */
-.main-container {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 24px;
+.header-link {
+    font-size: 15px;
+    color: #0f172a;
+    opacity: 0.8;
 }
 
-/* Карта */
 .map-section {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    border-radius: 28px;
-    padding: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-}
-
-.map-section:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-    border-color: rgba(255, 255, 255, 0.5);
+    position: relative;
+    height: calc(100vh - 120px);
+    min-height: 760px;
+    border-radius: 24px;
+    overflow: hidden;
+    background: #dce7ef;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
 #map {
     width: 100%;
-    height: 520px;
-    border-radius: 22px;
-    overflow: hidden;
-    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
+    height: 100%;
 }
 
-.coords-info {
-    margin-top: 14px;
-    padding: 14px 18px;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(8px);
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #1b5e20;
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+.left-panel,
+.right-panel {
+    position: absolute;
+    top: 28px;
+    z-index: 10;
+    width: 320px;
 }
 
-/* Правая панель */
-.info-panel {
+.left-panel {
+    left: 28px;
+}
+
+.right-panel {
+    right: 28px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 }
 
-/* Карточки - стеклянный эффект */
-.info-card {
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(12px);
-    border-radius: 24px;
-    padding: 22px;
-    transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-.info-card:hover {
-    transform: translateY(-3px);
-    background: rgba(255, 255, 255, 0.28);
-    border-color: rgba(255, 255, 255, 0.4);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-.card-header {
+.panel-tabs {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 18px;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-    padding-bottom: 12px;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
 }
 
-.card-icon {
-    font-size: 26px;
+.tab-btn {
+    width: 100%;
+    border: none;
+    background: #f2f4f7;
+    color: #1f2937;
+    padding: 16px 18px;
+    border-radius: 14px;
+    font-size: 15px;
+    cursor: pointer;
+    text-align: left;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
 }
 
-.card-header h3 {
+.tab-btn.active {
+    background: #e9eef4;
+    font-weight: 700;
+}
+
+.allergen-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(242, 244, 247, 0.94);
+    backdrop-filter: blur(6px);
+    border-radius: 18px;
+    padding: 12px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.allergen-item {
+    border: none;
+    background: transparent;
+    padding: 14px 12px;
+    border-radius: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.allergen-item:hover {
+    background: rgba(40, 145, 214, 0.08);
+}
+
+.allergen-item.active {
+    background: rgba(40, 145, 214, 0.12);
+}
+
+.allergen-title {
+    display: block;
     font-size: 18px;
     font-weight: 700;
-    color: #1b5e20;
-    letter-spacing: -0.3px;
+    color: #0f172a;
 }
 
-/* Риск */
-.risk-value {
-    font-size: 56px;
-    font-weight: 800;
-    text-align: center;
-    padding: 20px;
-    border-radius: 20px;
-    margin-bottom: 18px;
-    transition: all 0.3s;
+.allergen-subtitle {
+    display: block;
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
 }
 
-.risk-value.low {
-    background: linear-gradient(135deg, rgba(46, 125, 50, 0.3), rgba(76, 175, 80, 0.15));
-    color: #1b5e20;
-    border: 2px solid rgba(76, 175, 80, 0.5);
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
-}
-
-.risk-value.medium {
-    background: linear-gradient(135deg, rgba(239, 108, 0, 0.3), rgba(255, 152, 0, 0.15));
-    color: #e65100;
-    border: 2px solid rgba(255, 152, 0, 0.5);
-}
-
-.risk-value.high {
-    background: linear-gradient(135deg, rgba(198, 40, 40, 0.3), rgba(239, 83, 80, 0.15));
-    color: #b71c1c;
-    border: 2px solid rgba(239, 83, 80, 0.5);
-}
-
-.risk-details {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-    font-size: 14px;
-    font-weight: 500;
-    color: #1b5e20;
-}
-
-.detail-item span:first-child {
-    opacity: 0.85;
-}
-
-.detail-item span:last-child {
-    font-weight: 700;
-    background: rgba(255, 255, 255, 0.3);
-    padding: 4px 12px;
-    border-radius: 20px;
-    color: #0d3b0d;
-}
-
-/* Прогноз */
-.forecast-text {
-    font-size: 14px;
-    line-height: 1.5;
+.legend {
+    margin-top: 12px;
+    background: rgba(242, 244, 247, 0.94);
+    backdrop-filter: blur(6px);
+    border-radius: 18px;
     padding: 16px;
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 16px;
-    color: #1b5e20;
-    font-weight: 500;
-    min-height: 85px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
-/* Маршруты */
-.route-inputs {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 18px;
-}
-
-.route-inputs input {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(76, 175, 80, 0.3);
-    padding: 12px 16px;
-    border-radius: 16px;
-    font-size: 14px;
-    color: #1b5e20;
-    font-weight: 500;
-    outline: none;
-    transition: all 0.2s;
-}
-
-.route-inputs input:focus {
-    border-color: #2e7d32;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.2);
-}
-
-.route-inputs input::placeholder {
-    color: rgba(27, 94, 32, 0.5);
-}
-
-.route-inputs button {
-    background: linear-gradient(135deg, #2e7d32, #1b5e20);
-    border: none;
-    padding: 12px;
-    border-radius: 16px;
+.legend-title {
     font-size: 15px;
     font-weight: 700;
-    color: white;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
 }
 
-.route-inputs button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
-    background: linear-gradient(135deg, #1b5e20, #0d3b0d);
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    margin-bottom: 8px;
 }
 
-.route-value {
-    font-size: 28px;
-    font-weight: 800;
+.dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-1 {
+    background: #4FD08A;
+}
+
+.dot-2 {
+    background: #B8D94B;
+}
+
+.dot-3 {
+    background: #F5A623;
+}
+
+.dot-4 {
+    background: #E8505B;
+}
+
+.info-card {
+    background: rgba(248, 250, 252, 0.96);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(6px);
+}
+
+.card-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: #111827;
+}
+
+.risk-badge,
+.route-risk-box {
+    border-radius: 14px;
+    padding: 12px;
     text-align: center;
-    padding: 14px;
-    border-radius: 16px;
+    font-size: 24px;
+    font-weight: 800;
+    background: #e5e7eb;
     margin-bottom: 14px;
 }
 
-.route-value.low {
-    background: rgba(46, 125, 50, 0.25);
-    color: #1b5e20;
+.risk-low,
+.route-low {
+    background: rgba(79, 208, 138, 0.18);
+    color: #15803d;
 }
 
-.route-value.medium {
-    background: rgba(239, 108, 0, 0.25);
-    color: #e65100;
+.risk-medium,
+.route-medium {
+    background: rgba(184, 217, 75, 0.2);
+    color: #6b8e23;
 }
 
-.route-value.high {
-    background: rgba(198, 40, 40, 0.25);
-    color: #b71c1c;
+.risk-high,
+.route-high {
+    background: rgba(245, 166, 35, 0.2);
+    color: #b45309;
+}
+
+.risk-very-high,
+.route-very-high {
+    background: rgba(232, 80, 91, 0.18);
+    color: #b91c1c;
+}
+
+.point-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.point-item {
+    background: #f3f4f6;
+    padding: 12px;
+    border-radius: 12px;
+}
+
+.point-item span {
+    display: block;
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.point-item strong {
+    font-size: 18px;
+    color: #111827;
+}
+
+.point-meta {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #334155;
+}
+
+.meta-label {
+    font-weight: 700;
+}
+
+.forecast-text {
+    font-size: 15px;
+    line-height: 1.55;
+    color: #334155;
+}
+
+.route-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.route-form input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    padding: 14px 16px;
+    border-radius: 14px;
+    font-size: 15px;
+}
+
+.route-form button {
+    border: none;
+    background: #22814f;
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 14px 16px;
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+.route-form button:hover {
+    background: #1c6b42;
 }
 
 .route-details {
-    font-size: 12px;
-    font-weight: 500;
-    color: #1b5e20;
-    text-align: center;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #334155;
 }
 
-/* Адаптивность */
-@media (max-width: 1000px) {
-    .main-container {
-        grid-template-columns: 1fr;
+/* Кастомный пин */
+.custom-pin-wrap {
+    position: relative;
+    width: 42px;
+    height: 54px;
+}
+
+.custom-pin-head {
+    width: 42px;
+    height: 42px;
+    border-radius: 50% 50% 50% 8px;
+    transform: rotate(-45deg);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    border: 3px solid #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.custom-pin-text {
+    transform: rotate(45deg);
+    color: #111827;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+@media (max-width: 1350px) {
+
+    .left-panel,
+    .right-panel {
+        width: 280px;
     }
-    
-    .app {
-        padding: 12px;
+}
+
+@media (max-width: 1150px) {
+    .map-section {
+        height: auto;
+        min-height: 1100px;
     }
-    
+
+    .left-panel,
+    .right-panel {
+        position: static;
+        width: 100%;
+        margin-top: 16px;
+    }
+
+    .map-section {
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 24px;
+    }
+
     #map {
-        height: 400px;
+        height: 620px;
     }
-    
-    .logo-text {
-        font-size: 20px;
-    }
-    
-    .logo-icon {
-        font-size: 28px;
-    }
-}
 
-/* Анимация пульсации для активных элементов */
-@keyframes softPulse {
-    0%, 100% { opacity: 0.7; }
-    50% { opacity: 1; }
-}
+    .left-panel {
+        order: 2;
+        padding: 0 16px;
+    }
 
-.loading {
-    animation: softPulse 1.5s infinite;
+    .right-panel {
+        order: 3;
+        padding: 0 16px;
+    }
 }

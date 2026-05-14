@@ -1,118 +1,311 @@
 let myMap;
-let activePlacemark;
-let currentRoute;
+let currentRoute = null;
+let activePlacemark = null;
+let markerObjects = [];
+let currentAllergen = "birch";
 
-function init() {
-    myMap = new ymaps.Map("map", {
-        center: [55.751574, 37.573856],
-        zoom: 11,
-        controls: ["zoomControl", "fullscreenControl"]
-    });
-    
-    myMap.events.add("click", function(e) {
-        const coords = e.get("coords");
-        const lat = coords[0].toFixed(6);
-        const lon = coords[1].toFixed(6);
-        
-        document.getElementById("coords-info").innerHTML = '<span>⏳</span> Загрузка...';
-        
-        if (activePlacemark) {
-            myMap.geoObjects.remove(activePlacemark);
-        }
-        
-        activePlacemark = new ymaps.Placemark(coords, {
-            hintContent: `${lat}, ${lon}`,
-            balloonContent: `<strong>Координаты:</strong><br>${lat}, ${lon}`
-        }, {
-            preset: "islands#greenDotIcon"
-        });
-        
-        myMap.geoObjects.add(activePlacemark);
-        fetchRiskData(lat, lon);
-    });
-    
-    const routeBtn = document.getElementById("build-route-btn");
-    if (routeBtn) {
-        routeBtn.addEventListener("click", buildRoute);
-    }
-}
+const centerCoords = [55.7558, 37.6176];
 
-async function fetchRiskData(lat, lon) {
-    try {
-        const response = await fetch("/api/risk", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lat: parseFloat(lat), lon: parseFloat(lon) })
-        });
-        
-        const data = await response.json();
-        updateUI(data);
-        
-        document.getElementById("coords-info").innerHTML = 
-            `<span>📍</span> ${lat}, ${lon} — риск: ${data.risk}`;
-        
-    } catch (error) {
-        console.error(error);
-        document.getElementById("coords-info").innerHTML = '<span>⚠️</span> Ошибка';
-    }
-}
-
-function updateUI(data) {
-    document.getElementById("temp").textContent = data.temperature ? data.temperature + "°C" : "—";
-    document.getElementById("wind").textContent = data.wind_speed ? data.wind_speed + " м/с" : "—";
-    document.getElementById("humidity").textContent = data.humidity ? data.humidity + "%" : "—";
-    
-    const riskDiv = document.getElementById("risk-value");
-    riskDiv.textContent = data.risk;
-    riskDiv.className = "risk-value " + getRiskClass(data.risk);
-    
-    document.getElementById("forecast-text").textContent = data.forecast;
-    
-    const routeRiskDiv = document.getElementById("route-value");
-    routeRiskDiv.textContent = data.route_risk;
-    routeRiskDiv.className = "route-value " + getRiskClass(data.route_risk);
-}
-
-function getRiskClass(risk) {
+function riskCssClass(risk) {
     if (risk === "Низкий") return "low";
     if (risk === "Средний") return "medium";
     if (risk === "Высокий") return "high";
-    return "";
+    return "very-high";
 }
 
-function buildRoute() {
+function setPointInfo(data) {
+    const riskBox = document.getElementById("point-risk");
+    riskBox.textContent = data.risk;
+    riskBox.className = `risk-badge risk-${riskCssClass(data.risk)}`;
+
+    document.getElementById("point-temp").textContent =
+        data.temperature !== null && data.temperature !== undefined ? `${data.temperature}°C` : "—";
+
+    document.getElementById("point-wind").textContent =
+        data.wind_speed !== null && data.wind_speed !== undefined ? `${data.wind_speed} м/с` : "—";
+
+    document.getElementById("point-humidity").textContent =
+        data.humidity !== null && data.humidity !== undefined ? `${data.humidity}%` : "—";
+
+    document.getElementById("point-allergen-value").textContent =
+        data.allergen_value !== null && data.allergen_value !== undefined ? data.allergen_value : "—";
+
+    document.getElementById("point-allergen").textContent = data.allergen_label;
+    document.getElementById("point-score").textContent = data.score;
+    document.getElementById("forecast-text").textContent = data.forecast;
+}
+
+async function fetchRisk(lat, lon) {
+    const response = await fetch("/api/risk", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            lat,
+            lon,
+            allergen: currentAllergen
+        })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || "Ошибка загрузки данных");
+    }
+
+    return data;
+}
+
+async function fetchMapMarkers() {
+    const response = await fetch(`/api/map-markers?allergen=${currentAllergen}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || "Ошибка загрузки карты");
+    }
+
+    return data.markers;
+}
+
+function clearMarkers() {
+    markerObjects.forEach(obj => myMap.geoObjects.remove(obj));
+    markerObjects = [];
+}
+
+function markerLayout() {
+    return ymaps.templateLayoutFactory.createClass(`
+        <div class="custom-pin-wrap">
+            <div class="custom-pin-head" style="background: {{ properties.iconColor }};">
+                <div class="custom-pin-text">{{ properties.iconText }}</div>
+            </div>
+        </div>
+    `);
+}
+
+async function loadMarkers() {
+    clearMarkers();
+
+    const PinLayout = markerLayout();
+    const markers = await fetchMapMarkers();
+
+    markers.forEach(marker => {
+        const placemark = new ymaps.Placemark(
+            [marker.lat, marker.lon],
+            {
+                hintContent: `${marker.name}: ${marker.risk}`,
+                balloonContent: `
+                    <strong>${marker.name}</strong><br>
+                    Аллерген: ${marker.allergen_label}<br>
+                    Уровень риска: ${marker.risk}<br>
+                    Индекс: ${marker.score}
+                `,
+                iconText: marker.marker_value,
+                iconColor: marker.color
+            },
+            {
+                iconLayout: PinLayout,
+                iconShape: {
+                    type: "Rectangle",
+                    coordinates: [[-26, -52], [26, 4]]
+                },
+                hideIconOnBalloonOpen: false
+            }
+        );
+
+        placemark.events.add("click", async () => {
+            const fullData = await fetchRisk(marker.lat, marker.lon);
+            setPointInfo(fullData);
+
+            if (activePlacemark) {
+                myMap.geoObjects.remove(activePlacemark);
+            }
+
+            activePlacemark = new ymaps.Placemark(
+                [marker.lat, marker.lon],
+                {},
+                {
+                    preset: "islands#redDotIcon"
+                }
+            );
+
+            myMap.geoObjects.add(activePlacemark);
+        });
+
+        myMap.geoObjects.add(placemark);
+        markerObjects.push(placemark);
+    });
+}
+
+function geocodeToCoords(address) {
+    return new Promise((resolve, reject) => {
+        ymaps.geocode(address).then(
+            function (result) {
+                const first = result.geoObjects.get(0);
+                if (!first) {
+                    reject(new Error("Адрес не найден"));
+                    return;
+                }
+                resolve(first.geometry.getCoordinates());
+            },
+            function (error) {
+                reject(error);
+            }
+        );
+    });
+}
+
+function buildYRoute(points) {
+    return new Promise((resolve, reject) => {
+        ymaps.route(points).then(resolve, reject);
+    });
+}
+
+async function chooseSaferWaypoint(fromCoords, toCoords) {
+    const midLat = (fromCoords[0] + toCoords[0]) / 2;
+    const midLon = (fromCoords[1] + toCoords[1]) / 2;
+    const offset = 0.08;
+
+    const candidates = [
+        [midLat, midLon],
+        [midLat + offset, midLon],
+        [midLat - offset, midLon],
+        [midLat, midLon + offset],
+        [midLat, midLon - offset]
+    ];
+
+    let bestPoint = null;
+
+    for (const coords of candidates) {
+        try {
+            const data = await fetchRisk(coords[0], coords[1]);
+            if (!bestPoint || data.score < bestPoint.score) {
+                bestPoint = {
+                    coords,
+                    score: data.score,
+                    risk: data.risk
+                };
+            }
+        } catch (e) {
+            console.error("Ошибка точки маршрута:", e);
+        }
+    }
+
+    return bestPoint;
+}
+
+async function buildRoute() {
     const from = document.getElementById("route-from").value.trim();
     const to = document.getElementById("route-to").value.trim();
-    
+    const routeRiskBox = document.getElementById("route-risk");
+    const routeDetails = document.getElementById("route-details");
+
     if (!from || !to) {
-        alert("Введите обе точки");
+        alert("Введите обе точки маршрута");
         return;
     }
-    
-    const detailsDiv = document.getElementById("route-details");
-    detailsDiv.innerHTML = "⏳ Построение маршрута...";
-    
+
+    routeDetails.textContent = "Построение маршрута...";
+    routeRiskBox.textContent = "—";
+    routeRiskBox.className = "route-risk-box";
+
     if (currentRoute) {
         myMap.geoObjects.remove(currentRoute);
+        currentRoute = null;
     }
-    
-    ymaps.route([from, to]).then(
-        function(route) {
-            currentRoute = route;
-            myMap.geoObjects.add(currentRoute);
-            
-            document.getElementById("route-value").textContent = "Низкий";
-            document.getElementById("route-value").className = "route-value low";
-            detailsDiv.innerHTML = `
-                📏 ${route.getHumanLength()} | ⏱️ ${route.getHumanTime()}<br>
-                🟢 Оценка риска: низкий
-            `;
-        },
-        function(error) {
-            console.error(error);
-            detailsDiv.innerHTML = "❌ Не удалось построить маршрут. Проверьте названия (например, 'Москва, Красная площадь')";
+
+    try {
+        const fromCoords = await geocodeToCoords(from);
+        const toCoords = await geocodeToCoords(to);
+        const waypoint = await chooseSaferWaypoint(fromCoords, toCoords);
+
+        let routePoints = [fromCoords, toCoords];
+        if (waypoint && waypoint.score < 70) {
+            routePoints = [fromCoords, waypoint.coords, toCoords];
         }
-    );
+
+        currentRoute = await buildYRoute(routePoints);
+        myMap.geoObjects.add(currentRoute);
+
+        const destinationRisk = await fetchRisk(toCoords[0], toCoords[1]);
+
+        routeRiskBox.textContent = destinationRisk.risk;
+        routeRiskBox.className = `route-risk-box route-${riskCssClass(destinationRisk.risk)}`;
+
+        let extraText = "Маршрут построен";
+        if (waypoint && waypoint.score < 70) {
+            extraText = "Маршрут построен через более безопасную промежуточную точку";
+        }
+
+        routeDetails.innerHTML = `
+            ${extraText}<br>
+            Длина: ${currentRoute.getHumanLength()}<br>
+            Время: ${currentRoute.getHumanTime()}
+        `;
+    } catch (error) {
+        console.error(error);
+        routeDetails.textContent = "Не удалось построить маршрут. Проверьте адреса.";
+    }
+}
+
+async function handleMapClick(coords) {
+    const lat = parseFloat(coords[0].toFixed(6));
+    const lon = parseFloat(coords[1].toFixed(6));
+
+    try {
+        const data = await fetchRisk(lat, lon);
+        setPointInfo(data);
+
+        if (activePlacemark) {
+            myMap.geoObjects.remove(activePlacemark);
+        }
+
+        activePlacemark = new ymaps.Placemark(
+            [lat, lon],
+            {},
+            {
+                preset: "islands#redDotIcon"
+            }
+        );
+
+        myMap.geoObjects.add(activePlacemark);
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function bindAllergenButtons() {
+    document.querySelectorAll(".allergen-item").forEach(btn => {
+        btn.addEventListener("click", async () => {
+            document.querySelectorAll(".allergen-item").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+
+            currentAllergen = btn.dataset.allergen;
+            await loadMarkers();
+
+            const data = await fetchRisk(centerCoords[0], centerCoords[1]);
+            setPointInfo(data);
+        });
+    });
+}
+
+function init() {
+    myMap = new ymaps.Map("map", {
+        center: centerCoords,
+        zoom: 9,
+        controls: ["zoomControl", "geolocationControl", "fullscreenControl"]
+    });
+
+    myMap.events.add("click", function (e) {
+        handleMapClick(e.get("coords"));
+    });
+
+    bindAllergenButtons();
+
+    document.getElementById("build-route-btn").addEventListener("click", buildRoute);
+
+    loadMarkers();
+    fetchRisk(centerCoords[0], centerCoords[1]).then(setPointInfo);
 }
 
 ymaps.ready(init);

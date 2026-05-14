@@ -1,82 +1,115 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Allergy Risk — умный маршрутизатор для аллергиков</title>
+    <title>Allergy Risk</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
 </head>
+
 <body>
-    <div class="app">
-        <div class="top-bar">
-            <div class="logo">
-                <span class="logo-icon">🌿</span>
-                <span class="logo-text">Allergy Risk</span>
+    <div class="page">
+        <header class="page-header">
+            <h1>Уровень пыльцы и самочувствия</h1>
+            <div class="header-actions">
+                <span class="header-link">Allergy Risk MVP</span>
             </div>
-            <div class="badge">альфа</div>
-        </div>
+        </header>
 
-        <div class="main-container">
-            <div class="map-section">
-                <div id="map"></div>
-                <div class="coords-info" id="coords-info">
-                    <span>📍</span> Нажмите на карту, чтобы оценить риск
-                </div>
-            </div>
+        <section class="map-section">
+            <div id="map"></div>
 
-            <div class="info-panel">
-                <div class="info-card">
-                    <div class="card-header">
-                        <span class="card-icon">⚠️</span>
-                        <h3>Текущий риск</h3>
-                    </div>
-                    <div class="risk-value" id="risk-value">—</div>
-                    <div class="risk-details">
-                        <div class="detail-item">
-                            <span>🌡️ Температура</span>
-                            <span id="temp">—</span>
-                        </div>
-                        <div class="detail-item">
-                            <span>💨 Ветер</span>
-                            <span id="wind">—</span>
-                        </div>
-                        <div class="detail-item">
-                            <span>💧 Влажность</span>
-                            <span id="humidity">—</span>
-                        </div>
-                    </div>
+            <aside class="left-panel">
+                <div class="panel-tabs">
+                    <button class="tab-btn active">Прогноз SILAM</button>
+                    <button class="tab-btn">Прогноз +5 дней</button>
                 </div>
 
+                <div class="allergen-list">
+                    <button class="allergen-item active" data-allergen="birch">
+                        <span class="allergen-title">Берёза</span>
+                        <span class="allergen-subtitle">основной весенний аллерген</span>
+                    </button>
+
+                    <button class="allergen-item" data-allergen="grass">
+                        <span class="allergen-title">Злаки</span>
+                        <span class="allergen-subtitle">сезонный травяной аллерген</span>
+                    </button>
+
+                    <button class="allergen-item" data-allergen="ragweed">
+                        <span class="allergen-title">Амброзия</span>
+                        <span class="allergen-subtitle">высокоаллергенное растение</span>
+                    </button>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-title">Уровень риска</div>
+                    <div class="legend-item"><span class="dot dot-1"></span> Низкий</div>
+                    <div class="legend-item"><span class="dot dot-2"></span> Средний</div>
+                    <div class="legend-item"><span class="dot dot-3"></span> Высокий</div>
+                    <div class="legend-item"><span class="dot dot-4"></span> Очень высокий</div>
+                </div>
+            </aside>
+
+            <aside class="right-panel">
                 <div class="info-card">
-                    <div class="card-header">
-                        <span class="card-icon">📈</span>
-                        <h3>Прогноз</h3>
+                    <div class="card-title">Текущая точка</div>
+                    <div class="risk-badge" id="point-risk">—</div>
+
+                    <div class="point-grid">
+                        <div class="point-item">
+                            <span>Температура</span>
+                            <strong id="point-temp">—</strong>
+                        </div>
+                        <div class="point-item">
+                            <span>Ветер</span>
+                            <strong id="point-wind">—</strong>
+                        </div>
+                        <div class="point-item">
+                            <span>Влажность</span>
+                            <strong id="point-humidity">—</strong>
+                        </div>
+                        <div class="point-item">
+                            <span>Пыльца</span>
+                            <strong id="point-allergen-value">—</strong>
+                        </div>
                     </div>
-                    <div class="forecast-text" id="forecast-text">
-                        Нажмите на карту
+
+                    <div class="point-meta">
+                        <div><span class="meta-label">Аллерген:</span> <span id="point-allergen">—</span></div>
+                        <div><span class="meta-label">Индекс риска:</span> <span id="point-score">—</span></div>
                     </div>
                 </div>
 
                 <div class="info-card">
-                    <div class="card-header">
-                        <span class="card-icon">🗺️</span>
-                        <h3>Маршрут</h3>
-                    </div>
-                    <div class="route-inputs">
+                    <div class="card-title">Прогноз</div>
+                    <p id="forecast-text" class="forecast-text">
+                        Выберите аллерген и нажмите на карту или маркер
+                    </p>
+                </div>
+
+                <div class="info-card">
+                    <div class="card-title">Маршрут</div>
+                    <div class="route-form">
                         <input type="text" id="route-from" placeholder="Откуда" value="Москва, Красная площадь">
                         <input type="text" id="route-to" placeholder="Куда" value="Москва, Парк Горького">
                         <button id="build-route-btn">Построить маршрут</button>
                     </div>
-                    <div class="route-value" id="route-value">—</div>
-                    <div class="route-details" id="route-details">
-                        Постройте маршрут, чтобы оценить риск
+
+                    <div class="route-result">
+                        <div class="route-risk-box" id="route-risk">—</div>
+                        <div class="route-details" id="route-details">
+                            Маршрут ещё не построен
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </aside>
+        </section>
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
+
 </html>
