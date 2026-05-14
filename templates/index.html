@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Allergy Risk</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Для production по документации Яндекс Карт лучше добавить apikey=ВАШ_КЛЮЧ. -->
     <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&load=package.full" type="text/javascript"></script>
 </head>
 
@@ -15,8 +14,7 @@
         <header class="page-header">
             <div>
                 <h1>Уровень пыльцы и самочувствия</h1>
-                <p class="page-subtitle">Быстрый веб‑MVP для оценки аллергических рисков на основе Open‑Meteo и Яндекс
-                    Карт</p>
+                <p class="page-subtitle">Интерактивная карта аллергических рисков</p>
             </div>
             <div class="header-badge">Allergy Risk MVP</div>
         </header>
@@ -24,11 +22,11 @@
         <section class="map-stage">
             <div id="map"></div>
             <div id="map-loading" class="map-loading hidden">Загрузка маркеров…</div>
-            <div class="map-tip">Нажмите на маркер или любую точку карты, чтобы увидеть подробности справа</div>
+            <div class="map-tip">При отдалении точки объединяются в кластеры, при приближении раскрываются</div>
 
             <aside class="overlay-card left-overlay">
                 <div class="panel-tabs">
-                    <button class="tab-btn active" type="button">Карта маркеров</button>
+                    <button class="tab-btn active" type="button">Карта аллергенов</button>
                     <button class="tab-btn" type="button" disabled>Прогноз 6 часов</button>
                 </div>
 

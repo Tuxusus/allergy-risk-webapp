@@ -6,31 +6,30 @@
 
 :root {
     --bg: #edf2f7;
-    --card: rgba(248, 250, 252, 0.94);
-    --card-strong: rgba(255, 255, 255, 0.96);
+    --card: rgba(248, 250, 252, 0.95);
     --text: #0f172a;
     --muted: #64748b;
-    --border: rgba(148, 163, 184, 0.24);
-    --shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+    --border: rgba(148, 163, 184, 0.22);
+    --shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
 
-    --risk-low-bg: rgba(79, 208, 138, 0.18);
-    --risk-low-text: #14804a;
+    --risk-low-bg: rgba(83, 185, 124, 0.16);
+    --risk-low-text: #1f7a45;
 
-    --risk-medium-bg: rgba(184, 217, 75, 0.22);
-    --risk-medium-text: #5f7f1c;
+    --risk-medium-bg: rgba(168, 201, 74, 0.20);
+    --risk-medium-text: #647c1f;
 
-    --risk-high-bg: rgba(245, 166, 35, 0.22);
-    --risk-high-text: #b15e00;
+    --risk-high-bg: rgba(232, 162, 58, 0.20);
+    --risk-high-text: #a25b08;
 
-    --risk-very-high-bg: rgba(232, 80, 91, 0.18);
-    --risk-very-high-text: #b4232d;
+    --risk-very-high-bg: rgba(214, 90, 99, 0.16);
+    --risk-very-high-text: #a12a34;
 }
 
 html,
 body {
     width: 100%;
     min-height: 100%;
-    background: linear-gradient(180deg, #eef3f7 0%, #e7edf5 100%);
+    background: #eef3f7;
     color: var(--text);
     font-family: Arial, sans-serif;
 }
@@ -40,7 +39,7 @@ body {
 }
 
 .page {
-    max-width: 1600px;
+    max-width: 1550px;
     margin: 0 auto;
 }
 
@@ -55,22 +54,20 @@ body {
 .page-header h1 {
     font-size: 24px;
     line-height: 1.15;
-    color: #2891d6;
+    color: #2d8fd2;
     font-weight: 800;
 }
 
 .page-subtitle {
-    margin-top: 8px;
-    max-width: 760px;
+    margin-top: 6px;
     color: var(--muted);
     font-size: 14px;
-    line-height: 1.5;
 }
 
 .header-badge {
-    padding: 10px 14px;
+    padding: 9px 14px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.88);
+    background: #ffffff;
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     font-size: 13px;
@@ -83,10 +80,10 @@ body {
     width: 100%;
     min-height: 820px;
     height: calc(100vh - 140px);
-    max-height: 980px;
-    border-radius: 28px;
+    max-height: 960px;
+    border-radius: 24px;
     overflow: hidden;
-    background: #d8e3ec;
+    background: #d9e2ea;
     box-shadow: var(--shadow);
 }
 
@@ -98,7 +95,7 @@ body {
 .overlay-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 22px;
+    border-radius: 20px;
     box-shadow: var(--shadow);
     backdrop-filter: blur(8px);
 }
@@ -112,13 +109,13 @@ body {
 
 .left-overlay {
     left: 24px;
-    width: 320px;
+    width: 310px;
     padding: 16px;
 }
 
 .right-overlay {
     right: 24px;
-    width: 360px;
+    width: 350px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -140,11 +137,10 @@ body {
     padding: 15px 16px;
     border: none;
     border-radius: 14px;
-    background: rgba(241, 245, 249, 0.98);
+    background: #f3f6f9;
     color: var(--text);
     text-align: left;
     font-size: 15px;
-    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
 }
 
 .tab-btn.active {
@@ -159,7 +155,7 @@ body {
 .marker-status {
     padding: 12px 14px;
     border-radius: 14px;
-    background: rgba(240, 246, 252, 0.96);
+    background: #f5f8fb;
     color: #334155;
     font-size: 14px;
     line-height: 1.45;
@@ -176,20 +172,19 @@ body {
     width: 100%;
     border: none;
     background: transparent;
-    border-radius: 16px;
+    border-radius: 14px;
     padding: 14px 12px;
     text-align: left;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
+    transition: background 0.2s ease;
 }
 
 .allergen-item:hover {
-    background: rgba(40, 145, 214, 0.08);
-    transform: translateY(-1px);
+    background: rgba(45, 143, 210, 0.07);
 }
 
 .allergen-item.active {
-    background: rgba(40, 145, 214, 0.12);
+    background: rgba(45, 143, 210, 0.11);
 }
 
 .allergen-title {
@@ -209,9 +204,9 @@ body {
 .legend {
     margin-top: 14px;
     padding: 14px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.74);
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    background: #ffffffc9;
+    border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 .legend-title {
@@ -240,19 +235,19 @@ body {
 }
 
 .dot-1 {
-    background: #4FD08A;
+    background: #53B97C;
 }
 
 .dot-2 {
-    background: #B8D94B;
+    background: #A8C94A;
 }
 
 .dot-3 {
-    background: #F5A623;
+    background: #E8A23A;
 }
 
 .dot-4 {
-    background: #E8505B;
+    background: #D65A63;
 }
 
 .card-title {
@@ -263,7 +258,7 @@ body {
 
 .risk-badge,
 .route-risk-box {
-    border-radius: 16px;
+    border-radius: 15px;
     padding: 14px;
     text-align: center;
     font-size: 24px;
@@ -305,9 +300,9 @@ body {
 
 .point-item {
     padding: 12px;
-    border-radius: 14px;
-    background: rgba(243, 246, 249, 0.96);
-    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 13px;
+    background: #f6f8fa;
+    border: 1px solid rgba(148, 163, 184, 0.10);
 }
 
 .point-item span {
@@ -349,33 +344,22 @@ body {
 .route-form input {
     width: 100%;
     padding: 14px 16px;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    border-radius: 15px;
-    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 14px;
+    background: #ffffff;
     font-size: 15px;
     outline: none;
-}
-
-.route-form input:focus {
-    border-color: rgba(40, 145, 214, 0.4);
-    box-shadow: 0 0 0 4px rgba(40, 145, 214, 0.08);
 }
 
 .route-form button {
     padding: 14px 16px;
     border: none;
-    border-radius: 15px;
-    background: linear-gradient(135deg, #1f8a50, #18703f);
+    border-radius: 14px;
+    background: #217d4b;
     color: #ffffff;
     font-size: 15px;
     font-weight: 800;
     cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.route-form button:hover {
-    opacity: 0.96;
-    transform: translateY(-1px);
 }
 
 .map-loading {
@@ -388,7 +372,6 @@ body {
     border-radius: 999px;
     background: rgba(15, 23, 42, 0.86);
     color: white;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
     font-size: 14px;
     font-weight: 700;
 }
@@ -404,8 +387,8 @@ body {
     z-index: 11;
     max-width: 430px;
     padding: 12px 14px;
-    border-radius: 16px;
-    background: rgba(15, 23, 42, 0.82);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.78);
     color: #fff;
     font-size: 13px;
     line-height: 1.5;
@@ -413,45 +396,46 @@ body {
 
 .custom-pin {
     position: relative;
-    width: 46px;
-    height: 58px;
+    width: 44px;
+    height: 56px;
 }
 
 .custom-pin__shape {
     position: absolute;
     left: 0;
     top: 0;
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     border-radius: 50% 50% 50% 14px;
     transform: rotate(-45deg);
     border: 3px solid rgba(255, 255, 255, 0.96);
-    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.22);
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.18);
 }
 
 .custom-pin__label {
     position: absolute;
     left: 0;
-    top: 11px;
-    width: 46px;
+    top: 10px;
+    width: 44px;
     text-align: center;
     font-size: 17px;
     font-weight: 800;
     color: #0f172a;
 }
 
-.ymaps-2-1-79-balloon__content {
-    font-family: Arial, sans-serif;
-}
-
-@media (max-width: 1280px) {
-    .left-overlay {
-        width: 300px;
-    }
-
-    .right-overlay {
-        width: 330px;
-    }
+.cluster-badge {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(45, 143, 210, 0.92);
+    border: 4px solid rgba(255, 255, 255, 0.96);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 17px;
+    font-weight: 800;
+    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.18);
 }
 
 @media (max-width: 1120px) {
@@ -487,10 +471,6 @@ body {
         top: 640px;
         max-width: none;
     }
-
-    .map-loading {
-        top: 18px;
-    }
 }
 
 @media (max-width: 720px) {
@@ -501,9 +481,5 @@ body {
 
     .point-grid {
         grid-template-columns: 1fr;
-    }
-
-    .page-header h1 {
-        font-size: 21px;
     }
 }

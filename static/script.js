@@ -6,8 +6,9 @@ let myMap = null;
 let currentAllergen = "birch";
 let currentRoute = null;
 let detailPlacemark = null;
-let markerObjects = [];
+let clusterer = null;
 let pinLayoutClass = null;
+let clusterLayoutClass = null;
 let lastDetailCoords = DEFAULT_CENTER.slice();
 
 function riskCssClass(level) {
@@ -82,8 +83,29 @@ async function fetchRisk(lat, lon, options = {}) {
     return data;
 }
 
+function getCurrentBoundsPayload() {
+    const bounds = myMap.getBounds();
+    return {
+        south: bounds[0][0],
+        west: bounds[0][1],
+        north: bounds[1][0],
+        east: bounds[1][1],
+        zoom: myMap.getZoom()
+    };
+}
+
 async function fetchMapMarkers() {
-    const response = await fetch(`/api/map-markers?allergen=${encodeURIComponent(currentAllergen)}`);
+    const payload = getCurrentBoundsPayload();
+    const url = new URL("/api/map-markers", window.location.origin);
+
+    url.searchParams.set("allergen", currentAllergen);
+    url.searchParams.set("south", payload.south);
+    url.searchParams.set("west", payload.west);
+    url.searchParams.set("north", payload.north);
+    url.searchParams.set("east", payload.east);
+    url.searchParams.set("zoom", payload.zoom);
+
+    const response = await fetch(url.toString());
     const data = await response.json();
 
     if (!response.ok) {
@@ -102,13 +124,40 @@ function getPinLayout() {
             </div>
         `);
     }
-
     return pinLayoutClass;
 }
 
+function getClusterLayout() {
+    if (!clusterLayoutClass) {
+        clusterLayoutClass = ymaps.templateLayoutFactory.createClass(`
+            <div class="cluster-badge">{{ properties.geoObjects.length }}</div>
+        `);
+    }
+    return clusterLayoutClass;
+}
+
+function ensureClusterer() {
+    if (clusterer) return;
+
+    clusterer = new ymaps.Clusterer({
+        clusterDisableClickZoom: false,
+        groupByCoordinates: false,
+        clusterOpenBalloonOnClick: true,
+        clusterBalloonPanelMaxMapArea: 0,
+        clusterIconLayout: getClusterLayout(),
+        clusterIconShape: {
+            type: "Circle",
+            coordinates: [28, 28],
+            radius: 28
+        }
+    });
+
+    myMap.geoObjects.add(clusterer);
+}
+
 function clearMarkers() {
-    markerObjects.forEach((marker) => myMap.geoObjects.remove(marker));
-    markerObjects = [];
+    ensureClusterer();
+    clusterer.removeAll();
 }
 
 function setDetailPlacemark(coords) {
@@ -140,10 +189,10 @@ function createMarker(marker) {
         },
         {
             iconLayout: getPinLayout(),
-            iconOffset: [-23, -58],
+            iconOffset: [-22, -56],
             iconShape: {
                 type: "Rectangle",
-                coordinates: [[-23, -58], [23, 0]]
+                coordinates: [[-22, -56], [22, 0]]
             },
             hideIconOnBalloonOpen: false,
             openBalloonOnClick: true
@@ -160,6 +209,18 @@ function createMarker(marker) {
     return placemark;
 }
 
+let markerReloadTimer = null;
+
+function scheduleMarkersReload(delay = 280) {
+    if (markerReloadTimer) {
+        clearTimeout(markerReloadTimer);
+    }
+
+    markerReloadTimer = setTimeout(() => {
+        loadMarkers();
+    }, delay);
+}
+
 async function loadMarkers() {
     showMapLoading("Загрузка маркеров…");
     setMarkerStatus("Загрузка карты аллергенов…");
@@ -168,17 +229,15 @@ async function loadMarkers() {
     try {
         const payload = await fetchMapMarkers();
         const markers = payload.markers || [];
+        const geoObjects = markers.map(createMarker);
 
-        markers.forEach((marker) => {
-            const placemark = createMarker(marker);
-            markerObjects.push(placemark);
-            myMap.geoObjects.add(placemark);
-        });
+        ensureClusterer();
+        clusterer.add(geoObjects);
 
-        setMarkerStatus(`Загружено маркеров: ${markers.length}. Активный аллерген: ${payload.allergen_label}.`);
+        setMarkerStatus(`Загружено точек: ${markers.length}. Аллерген: ${payload.allergen_label}. Zoom: ${payload.zoom}.`);
     } catch (error) {
         console.error(error);
-        setMarkerStatus("Не удалось загрузить маркеры карты. Проверьте соединение и повторите попытку.");
+        setMarkerStatus("Не удалось загрузить маркеры карты.");
     } finally {
         hideMapLoading();
     }
@@ -233,8 +292,8 @@ function styleRoute(route) {
     try {
         route.getPaths().options.set({
             strokeWidth: 5,
-            opacity: 0.92,
-            strokeColor: "#2b73ff"
+            opacity: 0.9,
+            strokeColor: "#2f6cf6"
         });
     } catch (error) {
         console.warn("Не удалось применить стиль маршрута", error);
@@ -407,13 +466,20 @@ function init() {
         controls: ["zoomControl", "geolocationControl", "fullscreenControl"]
     });
 
+    ensureClusterer();
+
     myMap.events.add("click", function (event) {
         const coords = event.get("coords");
         selectPoint(coords[0], coords[1], { pan: false });
     });
 
-    bindAllergenButtons();
+    myMap.events.add("boundschange", function (event) {
+        if (event.get("newZoom") !== event.get("oldZoom")) {
+            scheduleMarkersReload(250);
+        }
+    });
 
+    bindAllergenButtons();
     document.getElementById("build-route-btn").addEventListener("click", buildRoute);
 
     Promise.all([
