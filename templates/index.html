@@ -151,95 +151,94 @@
         <!-- RIGHT -->
         <aside class="rightbar">
 
-            <!-- A -->
-            <div class="panel-card">
+    <!-- ================= MAP MODE ================= -->
+    <div id="map-panel">
 
-                <div class="panel-title">
-                    Точка A
-                </div>
+        <div class="panel-card">
 
-                <div
-                    class="risk-badge"
-                    id="point-a-risk">
-
-                    —
-
-                </div>
-
-                <div class="point-meta">
-
-                    Координаты:
-                    <span id="point-a-coords">—</span>
-
-                </div>
+            <div class="panel-title">
+                🌾 Информация о точке
             </div>
 
-            <!-- B -->
-            <div class="panel-card">
-
-                <div class="panel-title">
-                    Точка Б
-                </div>
-
-                <div
-                    class="risk-badge"
-                    id="point-b-risk">
-
-                    —
-
-                </div>
-
-                <div class="point-meta">
-
-                    Координаты:
-                    <span id="point-b-coords">—</span>
-
-                </div>
+            <div class="map-main-risk" id="main-risk-box">
+                —
             </div>
 
-            <!-- ROUTE -->
-            <div class="panel-card">
-
-                <div class="panel-title">
-                    🛡️ Маршрут
-                </div>
-
-                <div
-                    class="route-risk-box"
-                    id="route-risk">
-
-                    —
-
-                </div>
-
-                <div
-                    class="route-details"
-                    id="route-details">
-
-                    Маршрут ещё не построен
-
-                </div>
+            <div class="map-main-info" id="main-info">
+                Нажмите на карту
             </div>
 
-            <!-- RECOMMEND -->
-            <div class="panel-card">
+        </div>
 
-                <div class="panel-title">
-                    💡 Рекомендации
-                </div>
+        <div class="panel-card">
+            <div class="panel-title">🌤️ Погода</div>
+            <div class="map-info" id="weather-info">—</div>
+        </div>
 
-                <div
-                    class="route-details"
-                    id="comparison">
+        <div class="panel-card">
+            <div class="panel-title">🌫️ Воздух</div>
+            <div class="map-info" id="air-info">—</div>
+        </div>
 
-                    После построения маршрута
-                    здесь появятся рекомендации
+        <div class="panel-card">
+            <div class="panel-title">📅 Прогноз</div>
+            <div class="map-info" id="forecast-info">—</div>
+        </div>
 
-                </div>
+    </div>
 
+    <!-- ================= ROUTE MODE ================= -->
+    <div id="route-panel">
+
+        <div class="panel-card">
+
+            <div class="panel-title">Точка A</div>
+
+            <div class="risk-badge" id="point-a-risk">—</div>
+
+            <div class="point-meta">
+                Координаты:
+                <span id="point-a-coords">—</span>
             </div>
 
-        </aside>
+        </div>
+
+        <div class="panel-card">
+
+            <div class="panel-title">Точка Б</div>
+
+            <div class="risk-badge" id="point-b-risk">—</div>
+
+            <div class="point-meta">
+                Координаты:
+                <span id="point-b-coords">—</span>
+            </div>
+
+        </div>
+
+        <div class="panel-card">
+
+            <div class="panel-title">🛡️ Маршрут</div>
+
+            <div class="route-risk-box" id="route-risk">—</div>
+
+            <div class="route-details" id="route-details">
+                Маршрут ещё не построен
+            </div>
+
+        </div>
+
+        <div class="panel-card">
+
+            <div class="panel-title">💡 Рекомендации</div>
+
+            <div class="route-details" id="comparison">—</div>
+
+        </div>
+
+    </div>
+
+</aside>
 
     </div>
 

@@ -511,3 +511,57 @@ body {
         min-height: 560px;
     }
 }
+/* =========================
+   MAP MODE STYLES
+========================= */
+
+#map-panel {
+    display: block;
+}
+
+#route-panel {
+    display: none;
+}
+
+/* Главный блок карты */
+.map-main-risk {
+    background: rgba(240, 201, 76, 0.15);
+    color: #f0c94c;
+    border-radius: 16px;
+    padding: 16px;
+    font-size: 20px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+/* Информация в карте */
+.map-main-info {
+    font-size: 14px;
+    color: #d4dce5;
+    line-height: 1.6;
+}
+
+/* блоки внутри карты */
+.map-info {
+    font-size: 14px;
+    color: #d4dce5;
+    line-height: 1.6;
+}
+
+/* =========================
+   ROUTE MODE STYLES (чуть чище)
+========================= */
+
+#route-panel .panel-card {
+    border-left: 3px solid rgba(240, 201, 76, 0.2);
+}
+
+/* чтобы визуально отличались режимы */
+#route-panel .panel-title {
+    color: #f0c94c;
+}
+
+#map-panel .panel-title {
+    color: #7ec0ff;
+}
