@@ -3,9 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Allergy Risk - Безопасный маршрут для аллергиков</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://api-maps.yandex.ru/2.1/?apikey=ef45c9a8-2dbb-41a1-af00-3a189a8eb9bb&lang=ru_RU&load=package.full" type="text/javascript"></script>
 </head>
 
@@ -30,7 +31,7 @@
                 </div>
                 <div id="user-details" style="display: none; margin-top: 10px;">
                     <div id="username-display" style="margin-bottom: 10px; font-weight: bold;"></div>
-                    <button class="auth-btn" id="logout-btn" style="background: #dc2626;">Выйти</button>
+                    <button class="auth-btn" id="logout-btn" style="background: #e74c3c;">Выйти</button>
                 </div>
             </div>
 
@@ -42,11 +43,34 @@
 
             <!-- ALLERGENS -->
             <div class="side-card">
-                <div class="side-card-title">Аллергены</div>
+                <div class="side-card-title">🌿 Аллергены</div>
                 <div class="allergen-list">
                     <button class="allergen-item active" data-allergen="birch">🌳 Берёза</button>
                     <button class="allergen-item" data-allergen="grass">🌾 Злаки</button>
-                    <button class="allergen-item" data-allergen="ragweed">🚨 Амброзия</button>
+                    <button class="allergen-item" data-allergen="ragweed">🍂 Амброзия</button>
+                </div>
+            </div>
+
+            <!-- USER ALLERGENS SELECTION -->
+            <div class="side-card" id="user-allergens-card" style="display: none;">
+                <div class="side-card-title">⭐ Мои аллергены</div>
+                <div class="allergen-checkbox-list">
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="birch" id="user-allergen-birch">
+                        <span>🌳 Берёза</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="grass" id="user-allergen-grass">
+                        <span>🌾 Злаки</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="ragweed" id="user-allergen-ragweed">
+                        <span>🍂 Амброзия</span>
+                    </label>
+                </div>
+                <button id="save-allergens-btn" class="save-btn">💾 Сохранить выбор</button>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 12px; text-align: center;">
+                    ⚡ Маршруты будут строиться с учётом выбранных аллергенов
                 </div>
             </div>
 
@@ -97,12 +121,12 @@
             <!-- ROUTE MODE PANEL -->
             <div id="route-panel">
                 <div class="panel-card">
-                    <div class="panel-title">Точка A</div>
+                    <div class="panel-title">📍 Точка A</div>
                     <div class="risk-badge" id="point-a-risk">—</div>
                     <div class="point-meta">Координаты: <span id="point-a-coords">—</span></div>
                 </div>
                 <div class="panel-card">
-                    <div class="panel-title">Точка Б</div>
+                    <div class="panel-title">📍 Точка Б</div>
                     <div class="risk-badge" id="point-b-risk">—</div>
                     <div class="point-meta">Координаты: <span id="point-b-coords">—</span></div>
                 </div>
@@ -124,14 +148,14 @@
         <div class="modal-content">
             <span class="modal-close">&times;</span>
             <div id="login-form" class="auth-form">
-                <h3>Вход</h3>
+                <h3>Добро пожаловать</h3>
                 <input type="email" id="login-email" placeholder="Email" required>
                 <input type="password" id="login-password" placeholder="Пароль" required>
                 <button id="login-submit">Войти</button>
                 <p>Нет аккаунта? <a href="#" id="show-register">Зарегистрироваться</a></p>
             </div>
             <div id="register-form" class="auth-form" style="display: none;">
-                <h3>Регистрация</h3>
+                <h3>Создать аккаунт</h3>
                 <input type="text" id="reg-username" placeholder="Имя пользователя" required>
                 <input type="email" id="reg-email" placeholder="Email" required>
                 <input type="password" id="reg-password" placeholder="Пароль" required>
@@ -140,28 +164,6 @@
             </div>
         </div>
     </div>
-    <!-- USER ALLERGENS SELECTION (ТОЛЬКО ДЛЯ АВТОРИЗОВАННЫХ) -->
-<div class="side-card" id="user-allergens-card" style="display: none;">
-    <div class="side-card-title">🌿 Мои аллергены</div>
-    <div class="allergen-checkbox-list" id="user-allergens-list">
-        <label class="checkbox-item">
-            <input type="checkbox" value="birch" id="user-allergen-birch">
-            <span>🌳 Берёза</span>
-        </label>
-        <label class="checkbox-item">
-            <input type="checkbox" value="grass" id="user-allergen-grass">
-            <span>🌾 Злаки</span>
-        </label>
-        <label class="checkbox-item">
-            <input type="checkbox" value="ragweed" id="user-allergen-ragweed">
-            <span>🚨 Амброзия</span>
-        </label>
-    </div>
-    <button id="save-allergens-btn" class="save-btn">💾 Сохранить выбор</button>
-    <div class="allergen-note" style="font-size: 12px; color: var(--muted); margin-top: 10px;">
-        ⚡ Маршруты будут строиться с учётом выбранных аллергенов
-    </div>
-</div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
