@@ -16,6 +16,8 @@ let pollenCircles = [];
 
 let isSelectingPointA = true;
 
+let currentUser = null;
+
 // =====================
 // API
 // =====================
@@ -65,7 +67,6 @@ function getAllergenName() {
 
 function getDangerZones() {
     if (currentAllergen === "birch") {
-        // Берёза - опасные зоны: парки и лесопарки с берёзами
         return [
             { name: "ВДНХ", coords: [55.7800, 37.6000], radius: 1500 },
             { name: "Лосиный остров", coords: [55.8300, 37.6500], radius: 2000 },
@@ -76,7 +77,6 @@ function getDangerZones() {
             { name: "Сокольники", coords: [55.8000, 37.6800], radius: 1400 }
         ];
     } else if (currentAllergen === "grass") {
-        // Злаки - опасные зоны: открытые пространства, луга, поля
         return [
             { name: "Воробьёвы горы", coords: [55.7100, 37.5500], radius: 1200 },
             { name: "Капотня", coords: [55.6900, 37.7000], radius: 1300 },
@@ -86,7 +86,6 @@ function getDangerZones() {
             { name: "Алтуфьево", coords: [55.9000, 37.5900], radius: 1000 }
         ];
     } else {
-        // Амброзия - опасные зоны: южные и тёплые районы
         return [
             { name: "Марьино", coords: [55.6500, 37.6500], radius: 1300 },
             { name: "Братеево", coords: [55.6300, 37.7200], radius: 1200 },
@@ -105,12 +104,10 @@ function getDangerZones() {
 
 function isPointInDangerZone(lat, lon) {
     const dangerZones = getDangerZones();
-    
     for (const zone of dangerZones) {
         const dx = lat - zone.coords[0];
         const dy = lon - zone.coords[1];
-        const distance = Math.sqrt(dx * dx + dy * dy) * 111000; // примерно в метрах
-        
+        const distance = Math.sqrt(dx * dx + dy * dy) * 111000;
         if (distance < zone.radius) {
             return true;
         }
@@ -123,10 +120,7 @@ function isPointInDangerZone(lat, lon) {
 // =====================
 
 async function findSafeWaypoint(fromCoords, toCoords) {
-    // Генерируем несколько потенциальных точек объезда
     const candidates = [];
-    
-    // Основные направления объезда
     const offsets = [
         { name: "север", lat: 0.03, lon: 0 },
         { name: "юг", lat: -0.03, lon: 0 },
@@ -138,17 +132,13 @@ async function findSafeWaypoint(fromCoords, toCoords) {
         { name: "юго-запад", lat: -0.025, lon: -0.025 }
     ];
     
-    // Средняя точка между A и B
     const midLat = (fromCoords[0] + toCoords[0]) / 2;
     const midLon = (fromCoords[1] + toCoords[1]) / 2;
     
     for (const offset of offsets) {
         const candidateLat = midLat + offset.lat;
         const candidateLon = midLon + offset.lon;
-        
-        // Проверяем, не попадает ли точка в опасную зону
         const isSafe = !isPointInDangerZone(candidateLat, candidateLon);
-        
         candidates.push({
             coords: [candidateLat, candidateLon],
             name: offset.name,
@@ -156,7 +146,6 @@ async function findSafeWaypoint(fromCoords, toCoords) {
         });
     }
     
-    // Оцениваем риск для каждого кандидата через API
     let bestPoint = null;
     let lowestRisk = Infinity;
     
@@ -164,10 +153,7 @@ async function findSafeWaypoint(fromCoords, toCoords) {
         try {
             const riskData = await fetchRisk(candidate.coords[0], candidate.coords[1]);
             const riskScore = riskData.score || 0;
-            
-            // Даём бонус за безопасность (не в опасной зоне)
             const finalScore = candidate.isSafe ? riskScore : riskScore + 30;
-            
             if (finalScore < lowestRisk) {
                 lowestRisk = finalScore;
                 bestPoint = {
@@ -181,7 +167,6 @@ async function findSafeWaypoint(fromCoords, toCoords) {
             console.error("Ошибка при проверке кандидата:", error);
         }
     }
-    
     return bestPoint;
 }
 
@@ -200,10 +185,7 @@ async function buildRoute() {
     document.getElementById("route-details").innerHTML = "🔍 Анализируем опасные зоны для " + getAllergenName() + "...";
     
     try {
-        // Ищем безопасную промежуточную точку
         const safeWaypoint = await findSafeWaypoint(pointA, pointB);
-        
-        // Проверяем, нужен ли объезд
         const startDanger = isPointInDangerZone(pointA[0], pointA[1]);
         const endDanger = isPointInDangerZone(pointB[0], pointB[1]);
         const needDetour = startDanger || endDanger || (safeWaypoint && !safeWaypoint.isSafe);
@@ -212,13 +194,10 @@ async function buildRoute() {
         let detourInfo = "";
         
         if (needDetour && safeWaypoint && safeWaypoint.riskData.score < 50) {
-            // Строим маршрут через безопасную точку
             routePoints = [pointA, safeWaypoint.coords, pointB];
             detourInfo = `🔄 Маршрут изменён для ${getAllergenName()}! Объезд через ${safeWaypoint.name}. Риск: ${safeWaypoint.riskData.risk || "Низкий"} (${safeWaypoint.riskData.score} баллов)`;
         } else {
-            // Прямой маршрут
             routePoints = [pointA, pointB];
-            
             if (startDanger || endDanger) {
                 detourInfo = `⚠️ Внимание! Точки находятся в опасной зоне для ${getAllergenName()}. Рекомендуется выбрать другие точки.`;
             } else {
@@ -226,21 +205,14 @@ async function buildRoute() {
             }
         }
         
-        // Строим маршрут
         currentRoute = new ymaps.multiRouter.MultiRoute({
             referencePoints: routePoints,
-            params: {
-                routingMode: "pedestrian",
-                results: 1
-            }
-        }, {
-            boundsAutoApply: true
-        });
+            params: { routingMode: "pedestrian", results: 1 }
+        }, { boundsAutoApply: true });
         
-        // Цвет маршрута в зависимости от аллергена
-        let routeColor = "#53B97C"; // зелёный для берёзы
-        if (currentAllergen === "grass") routeColor = "#3B82F6"; // синий для злаков
-        if (currentAllergen === "ragweed") routeColor = "#D65A63"; // красный для амброзии
+        let routeColor = "#53B97C";
+        if (currentAllergen === "grass") routeColor = "#3B82F6";
+        if (currentAllergen === "ragweed") routeColor = "#D65A63";
         
         currentRoute.options.set({
             routeActiveStrokeColor: routeColor,
@@ -259,19 +231,16 @@ async function buildRoute() {
             
             const distance = activeRoute.properties.get("distance").text;
             const duration = activeRoute.properties.get("duration").text;
-            
-            // Получаем риски для точек A и B
             const riskA = await fetchRisk(pointA[0], pointA[1]);
             const riskB = await fetchRisk(pointB[0], pointB[1]);
-            
             const maxRisk = Math.max(riskA.score || 0, riskB.score || 0);
+            
             let riskLevel = "Низкий";
             if (maxRisk >= 75) riskLevel = "Очень высокий";
             else if (maxRisk >= 50) riskLevel = "Высокий";
             else if (maxRisk >= 25) riskLevel = "Средний";
             
             document.getElementById("route-risk").innerHTML = `🛡️ ${riskLevel}`;
-            
             document.getElementById("route-details").innerHTML = `
                 🚶 Маршрут для ${getAllergenName()} построен<br><br>
                 📏 Длина: ${distance}<br>
@@ -280,10 +249,7 @@ async function buildRoute() {
                 🛡️ Макс. риск: ${maxRisk} баллов (${riskLevel})
             `;
             
-            let comparisonHtml = `
-                <strong>📊 Анализ для ${getAllergenName()}:</strong><br><br>
-            `;
-            
+            let comparisonHtml = `<strong>📊 Анализ для ${getAllergenName()}:</strong><br><br>`;
             const dangerZones = getDangerZones();
             if (dangerZones.length > 0) {
                 comparisonHtml += `⚠️ Избегаемые зоны:<br>`;
@@ -292,11 +258,7 @@ async function buildRoute() {
                 }
                 comparisonHtml += `<br>`;
             }
-            
-            comparisonHtml += needDetour 
-                ? `🔄 Маршрут оптимизирован для объезда опасных зон.`
-                : `✅ Прямой маршрут безопасен.`;
-            
+            comparisonHtml += needDetour ? `🔄 Маршрут оптимизирован для объезда опасных зон.` : `✅ Прямой маршрут безопасен.`;
             document.getElementById("comparison").innerHTML = comparisonHtml;
             document.getElementById("route-status").textContent = "Маршрут готов";
         });
@@ -319,11 +281,9 @@ async function buildRoute() {
 
 function updateMapInfo(data, coords) {
     const riskLevel = data.risk || "Низкий";
-    
     let riskColor = "";
     if (riskLevel === "Низкий") riskColor = "#53B97C";
     else if (riskLevel === "Средний") riskColor = "#E8A23A";
-    else if (riskLevel === "Высокий") riskColor = "#D65A63";
     else riskColor = "#D65A63";
     
     document.getElementById("main-risk-box").innerHTML = riskLevel;
@@ -331,8 +291,7 @@ function updateMapInfo(data, coords) {
     document.getElementById("main-risk-box").style.color = riskColor;
     
     document.getElementById("main-info").innerHTML = `
-        📍 Координаты:<br>
-        ${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}<br><br>
+        📍 Координаты:<br>${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}<br><br>
         🌾 Аллерген: ${getAllergenName()}<br><br>
         🌾 Концентрация: ${data.allergen_value || 0} ед.<br><br>
         ⚠️ Индекс риска: ${data.score || 0} баллов
@@ -364,12 +323,10 @@ function updateMapInfo(data, coords) {
 
 async function renderPollenMap() {
     clearPollen();
-    
     document.getElementById("page-title").textContent = "Карта пыльцы";
     document.getElementById("page-subtitle").textContent = `Аллерген: ${getAllergenName()}`;
     
     let points = [];
-    
     if (currentAllergen === "birch") {
         points = [
             [55.7558, 37.6176], [55.7800, 37.6000], [55.8300, 37.6500],
@@ -394,7 +351,6 @@ async function renderPollenMap() {
     for (const point of points) {
         const risk = await fetchRisk(point[0], point[1]);
         const score = risk.score || 0;
-        
         let color = "#53B97C";
         if (score >= 75) color = "#D65A63";
         else if (score >= 50) color = "#D65A63";
@@ -413,16 +369,13 @@ async function renderPollenMap() {
                 interactive: false
             }
         );
-        
         pollenCircles.push(circle);
         myMap.geoObjects.add(circle);
     }
 }
 
 function clearPollen() {
-    pollenCircles.forEach(circle => {
-        myMap.geoObjects.remove(circle);
-    });
+    pollenCircles.forEach(circle => myMap.geoObjects.remove(circle));
     pollenCircles = [];
 }
 
@@ -464,16 +417,13 @@ async function selectPoint(coords) {
         const riskA = await fetchRisk(coords[0], coords[1]);
         document.getElementById("point-a-risk").innerHTML = riskA.risk || "Низкий";
         document.getElementById("point-a-coords").innerHTML = `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
-        
         document.getElementById("point-b-risk").innerHTML = "—";
         document.getElementById("point-b-coords").innerHTML = "—";
         document.getElementById("route-risk").innerHTML = "—";
         document.getElementById("route-details").innerHTML = "Выберите точку Б";
         document.getElementById("comparison").innerHTML = "—";
-        
         document.getElementById("route-status").textContent = "Выберите точку Б";
         isSelectingPointA = false;
-        
     } else {
         pointB = coords;
         pointBMarker = createMarker(coords, "B");
@@ -482,9 +432,7 @@ async function selectPoint(coords) {
         const riskB = await fetchRisk(coords[0], coords[1]);
         document.getElementById("point-b-risk").innerHTML = riskB.risk || "Низкий";
         document.getElementById("point-b-coords").innerHTML = `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
-        
         await buildRoute();
-        
         isSelectingPointA = true;
     }
 }
@@ -521,7 +469,6 @@ function resetRoute() {
 
 async function changeAllergen(type) {
     currentAllergen = type;
-    
     document.querySelectorAll(".allergen-item").forEach(btn => btn.classList.remove("active"));
     document.querySelector(`[data-allergen="${type}"]`).classList.add("active");
     
@@ -529,11 +476,7 @@ async function changeAllergen(type) {
         document.getElementById("page-subtitle").textContent = `Аллерген: ${getAllergenName()}`;
         await renderPollenMap();
     } else if (panelMode === "route") {
-        if (pointA && pointB) {
-            // Перестраиваем маршрут с учётом нового аллергена
-            await buildRoute();
-        }
-        // Обновляем риски для точек
+        if (pointA && pointB) await buildRoute();
         if (pointA) {
             const riskA = await fetchRisk(pointA[0], pointA[1]);
             document.getElementById("point-a-risk").innerHTML = riskA.risk || "Низкий";
@@ -551,32 +494,204 @@ async function changeAllergen(type) {
 
 function switchMode(mode) {
     panelMode = mode;
-    
     document.querySelectorAll(".side-link").forEach(btn => btn.classList.remove("active"));
     
     if (mode === "map") {
         document.getElementById("mode-map").classList.add("active");
         document.getElementById("map-panel").style.display = "block";
         document.getElementById("route-panel").style.display = "none";
-        
         clearPollen();
         renderPollenMap();
-        
         document.getElementById("page-title").textContent = "Карта пыльцы";
         document.getElementById("page-subtitle").textContent = `Аллерген: ${getAllergenName()}`;
-        
     } else {
         document.getElementById("mode-route").classList.add("active");
         document.getElementById("map-panel").style.display = "none";
         document.getElementById("route-panel").style.display = "block";
-        
         clearPollen();
-        
         document.getElementById("page-title").textContent = "Безопасный маршрут";
         document.getElementById("page-subtitle").textContent = "Выберите точки A и Б на карте";
-        
         resetRoute();
     }
+}
+
+// =====================
+// УПРАВЛЕНИЕ АЛЛЕРГЕНАМИ ПОЛЬЗОВАТЕЛЯ
+// =====================
+
+async function loadUserAllergensFromDB() {
+    try {
+        const response = await fetch("/api/user/allergens");
+        const data = await response.json();
+        if (data.success && data.allergens) {
+            document.getElementById("user-allergen-birch").checked = false;
+            document.getElementById("user-allergen-grass").checked = false;
+            document.getElementById("user-allergen-ragweed").checked = false;
+            
+            for (const allergen of data.allergens) {
+                const checkbox = document.getElementById(`user-allergen-${allergen}`);
+                if (checkbox) checkbox.checked = true;
+            }
+            
+            if (data.allergens.length > 0) {
+                const primaryAllergen = data.allergens[0];
+                if (primaryAllergen !== currentAllergen) {
+                    await changeAllergen(primaryAllergen);
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Ошибка загрузки аллергенов пользователя:", error);
+    }
+}
+
+async function saveUserAllergens() {
+    if (!currentUser) {
+        alert("Пожалуйста, войдите в систему");
+        return;
+    }
+    
+    const selectedAllergens = [];
+    if (document.getElementById("user-allergen-birch").checked) selectedAllergens.push("birch");
+    if (document.getElementById("user-allergen-grass").checked) selectedAllergens.push("grass");
+    if (document.getElementById("user-allergen-ragweed").checked) selectedAllergens.push("ragweed");
+    
+    if (selectedAllergens.length === 0) {
+        alert("Выберите хотя бы один аллерген");
+        return;
+    }
+    
+    try {
+        const allergensList = ["birch", "grass", "ragweed"];
+        for (const allergen of allergensList) {
+            await fetch(`/api/user/allergens/${allergen}`, { method: "DELETE" });
+        }
+        
+        for (const allergen of selectedAllergens) {
+            await fetch("/api/user/allergens", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ allergen_type: allergen, severity: 3 })
+            });
+        }
+        
+        alert("Аллергены сохранены!");
+        
+        if (selectedAllergens.length > 0 && selectedAllergens[0] !== currentAllergen) {
+            await changeAllergen(selectedAllergens[0]);
+        }
+    } catch (error) {
+        console.error("Ошибка сохранения аллергенов:", error);
+        alert("Ошибка при сохранении");
+    }
+}
+
+// =====================
+// АВТОРИЗАЦИЯ
+// =====================
+
+async function checkAuth() {
+    try {
+        const response = await fetch("/api/user/me");
+        const data = await response.json();
+        if (data.authenticated) {
+            currentUser = data;
+            document.getElementById("user-info").style.display = "none";
+            document.getElementById("user-details").style.display = "block";
+            document.getElementById("user-allergens-card").style.display = "block";
+            document.getElementById("username-display").innerHTML = `👋 ${data.username}`;
+            document.getElementById("user-badge").innerHTML = data.username;
+            await loadUserAllergensFromDB();
+        } else {
+            currentUser = null;
+            document.getElementById("user-info").style.display = "block";
+            document.getElementById("user-details").style.display = "none";
+            document.getElementById("user-allergens-card").style.display = "none";
+            document.getElementById("user-badge").innerHTML = "Гость";
+            if (currentAllergen !== "birch") {
+                await changeAllergen("birch");
+            }
+        }
+    } catch (error) {
+        console.error("Ошибка проверки авторизации:", error);
+    }
+}
+
+async function login(email, password) {
+    try {
+        const response = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (data.success) {
+            await checkAuth();
+            closeModal();
+            alert("Вход выполнен успешно!");
+            return true;
+        } else {
+            alert(data.error);
+            return false;
+        }
+    } catch (error) {
+        alert("Ошибка при входе");
+        return false;
+    }
+}
+
+async function register(username, email, password) {
+    try {
+        const response = await fetch("/api/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, email, password })
+        });
+        const data = await response.json();
+        if (data.success) {
+            await checkAuth();
+            closeModal();
+            alert("Регистрация успешна!");
+            return true;
+        } else {
+            alert(data.error);
+            return false;
+        }
+    } catch (error) {
+        alert("Ошибка при регистрации");
+        return false;
+    }
+}
+
+async function logout() {
+    try {
+        await fetch("/api/logout", { method: "POST" });
+        currentUser = null;
+        await checkAuth();
+        alert("Вы вышли из системы");
+        await changeAllergen("birch");
+    } catch (error) {
+        console.error("Ошибка при выходе:", error);
+    }
+}
+
+// =====================
+// МОДАЛЬНОЕ ОКНО
+// =====================
+
+const modal = document.getElementById("auth-modal");
+const modalClose = document.querySelector(".modal-close");
+
+function openModal() { modal.style.display = "flex"; }
+function closeModal() {
+    modal.style.display = "none";
+    document.getElementById("login-form").style.display = "block";
+    document.getElementById("register-form").style.display = "none";
+    document.getElementById("login-email").value = "";
+    document.getElementById("login-password").value = "";
+    document.getElementById("reg-username").value = "";
+    document.getElementById("reg-email").value = "";
+    document.getElementById("reg-password").value = "";
 }
 
 // =====================
@@ -591,13 +706,37 @@ function init() {
     });
     
     myMap.events.add("click", async function(e) {
-        const coords = e.get("coords");
-        await selectPoint(coords);
+        await selectPoint(e.get("coords"));
     });
     
     document.getElementById("mode-map").addEventListener("click", () => switchMode("map"));
     document.getElementById("mode-route").addEventListener("click", () => switchMode("route"));
     document.getElementById("reset-route-btn").addEventListener("click", resetRoute);
+    document.getElementById("save-allergens-btn").addEventListener("click", saveUserAllergens);
+    
+    document.getElementById("login-btn").addEventListener("click", openModal);
+    document.getElementById("register-btn").addEventListener("click", openModal);
+    modalClose.addEventListener("click", closeModal);
+    window.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+    
+    document.getElementById("show-register").addEventListener("click", (e) => {
+        e.preventDefault();
+        document.getElementById("login-form").style.display = "none";
+        document.getElementById("register-form").style.display = "block";
+    });
+    document.getElementById("show-login").addEventListener("click", (e) => {
+        e.preventDefault();
+        document.getElementById("register-form").style.display = "none";
+        document.getElementById("login-form").style.display = "block";
+    });
+    
+    document.getElementById("login-submit").addEventListener("click", async () => {
+        await login(document.getElementById("login-email").value, document.getElementById("login-password").value);
+    });
+    document.getElementById("register-submit").addEventListener("click", async () => {
+        await register(document.getElementById("reg-username").value, document.getElementById("reg-email").value, document.getElementById("reg-password").value);
+    });
+    document.getElementById("logout-btn").addEventListener("click", logout);
     
     document.querySelectorAll(".allergen-item").forEach(button => {
         button.addEventListener("click", async function() {
@@ -605,6 +744,7 @@ function init() {
         });
     });
     
+    checkAuth();
     switchMode("map");
 }
 

@@ -4,246 +4,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Allergy Risk</title>
-
-    <link rel="stylesheet"
-        href="{{ url_for('static', filename='style.css') }}">
-
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=ef45c9a8-2dbb-41a1-af00-3a189a8eb9bb&lang=ru_RU&load=package.full"
-        type="text/javascript"></script>
+    <title>Allergy Risk - Безопасный маршрут для аллергиков</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ef45c9a8-2dbb-41a1-af00-3a189a8eb9bb&lang=ru_RU&load=package.full" type="text/javascript"></script>
 </head>
 
 <body>
-
     <div class="app-shell">
-
-        <!-- LEFT -->
+        <!-- LEFT SIDEBAR -->
         <aside class="sidebar">
-
             <div class="brand">
-
-                <div class="brand-logo">
-                    AR
-                </div>
-
+                <div class="brand-logo">AR</div>
                 <div>
-                    <div class="brand-title">
-                        Allergy Risk
-                    </div>
+                    <div class="brand-title">Allergy Risk</div>
+                    <div class="brand-subtitle">безопасный маршрут</div>
+                </div>
+            </div>
 
-                    <div class="brand-subtitle">
-                        безопасный маршрут
-                    </div>
+            <!-- USER PANEL -->
+            <div class="side-card">
+                <div class="side-card-title">👤 Пользователь</div>
+                <div id="user-info">
+                    <button class="auth-btn" id="login-btn">Вход</button>
+                    <button class="auth-btn" id="register-btn">Регистрация</button>
+                </div>
+                <div id="user-details" style="display: none; margin-top: 10px;">
+                    <div id="username-display" style="margin-bottom: 10px; font-weight: bold;"></div>
+                    <button class="auth-btn" id="logout-btn" style="background: #dc2626;">Выйти</button>
                 </div>
             </div>
 
             <!-- MODES -->
             <nav class="side-menu">
-
-                <button
-                    class="side-link"
-                    id="mode-map">
-
-                    🌾 Карта пыльцы
-
-                </button>
-
-                <button
-                    class="side-link active"
-                    id="mode-route">
-
-                    🛣️ Маршруты
-
-                </button>
-
+                <button class="side-link" id="mode-map">🌾 Карта пыльцы</button>
+                <button class="side-link active" id="mode-route">🛣️ Маршруты</button>
             </nav>
 
             <!-- ALLERGENS -->
             <div class="side-card">
-
-                <div class="side-card-title">
-                    Аллергены
-                </div>
-
+                <div class="side-card-title">Аллергены</div>
                 <div class="allergen-list">
-
-                    <button
-                        class="allergen-item active"
-                        data-allergen="birch">
-
-                        🌳 Берёза
-
-                    </button>
-
-                    <button
-                        class="allergen-item"
-                        data-allergen="grass">
-
-                        🌾 Злаки
-
-                    </button>
-
-                    <button
-                        class="allergen-item"
-                        data-allergen="ragweed">
-
-                        🚨 Амброзия
-
-                    </button>
-
+                    <button class="allergen-item active" data-allergen="birch">🌳 Берёза</button>
+                    <button class="allergen-item" data-allergen="grass">🌾 Злаки</button>
+                    <button class="allergen-item" data-allergen="ragweed">🚨 Амброзия</button>
                 </div>
             </div>
 
-            <!-- RESET -->
-            <button
-                id="reset-route-btn"
-                class="reset-btn">
+            <!-- RESET BUTTON -->
+            <button id="reset-route-btn" class="reset-btn">🔄 Сбросить маршрут</button>
 
-                🔄 Сбросить маршрут
-
-            </button>
-
-            <div class="status-box"
-                id="route-status">
-
-                Выберите точку A
-
-            </div>
-
+            <!-- STATUS -->
+            <div class="status-box" id="route-status">Выберите точку A</div>
         </aside>
 
-        <!-- CENTER -->
+        <!-- CENTER - MAP -->
         <main class="main-layout">
-
             <header class="topbar">
-
                 <div>
-
-                    <div
-                        class="page-title"
-                        id="page-title">
-
-                        Безопасный маршрут
-
-                    </div>
-
-                    <div
-                        class="page-subtitle"
-                        id="page-subtitle">
-
-                        Выберите точки A и Б
-
-                    </div>
-
+                    <div class="page-title" id="page-title">Безопасный маршрут</div>
+                    <div class="page-subtitle" id="page-subtitle">Выберите точки A и Б на карте</div>
                 </div>
-
+                <div class="topbar-badge" id="user-badge">Гость</div>
             </header>
-
             <section class="map-panel">
-
                 <div id="map"></div>
-
             </section>
-
         </main>
 
-        <!-- RIGHT -->
+        <!-- RIGHT PANEL -->
         <aside class="rightbar">
-
-    <!-- ================= MAP MODE ================= -->
-    <div id="map-panel">
-
-        <div class="panel-card">
-
-            <div class="panel-title">
-                🌾 Информация о точке
+            <!-- MAP MODE PANEL -->
+            <div id="map-panel" style="display: none;">
+                <div class="panel-card">
+                    <div class="panel-title">🌾 Информация о точке</div>
+                    <div class="map-main-risk" id="main-risk-box">—</div>
+                    <div class="map-main-info" id="main-info">Нажмите на карту</div>
+                </div>
+                <div class="panel-card">
+                    <div class="panel-title">🌤️ Погода</div>
+                    <div class="map-info" id="weather-info">—</div>
+                </div>
+                <div class="panel-card">
+                    <div class="panel-title">🌫️ Воздух</div>
+                    <div class="map-info" id="air-info">—</div>
+                </div>
+                <div class="panel-card">
+                    <div class="panel-title">📅 Прогноз</div>
+                    <div class="map-info" id="forecast-info">—</div>
+                </div>
             </div>
 
-            <div class="map-main-risk" id="main-risk-box">
-                —
+            <!-- ROUTE MODE PANEL -->
+            <div id="route-panel">
+                <div class="panel-card">
+                    <div class="panel-title">Точка A</div>
+                    <div class="risk-badge" id="point-a-risk">—</div>
+                    <div class="point-meta">Координаты: <span id="point-a-coords">—</span></div>
+                </div>
+                <div class="panel-card">
+                    <div class="panel-title">Точка Б</div>
+                    <div class="risk-badge" id="point-b-risk">—</div>
+                    <div class="point-meta">Координаты: <span id="point-b-coords">—</span></div>
+                </div>
+                <div class="panel-card">
+                    <div class="panel-title">🛡️ Маршрут</div>
+                    <div class="route-risk-box" id="route-risk">—</div>
+                    <div class="route-details" id="route-details">Маршрут ещё не построен</div>
+                </div>
+                <div class="panel-card">
+                    <div class="panel-title">💡 Рекомендации</div>
+                    <div class="route-details" id="comparison">—</div>
+                </div>
             </div>
-
-            <div class="map-main-info" id="main-info">
-                Нажмите на карту
-            </div>
-
-        </div>
-
-        <div class="panel-card">
-            <div class="panel-title">🌤️ Погода</div>
-            <div class="map-info" id="weather-info">—</div>
-        </div>
-
-        <div class="panel-card">
-            <div class="panel-title">🌫️ Воздух</div>
-            <div class="map-info" id="air-info">—</div>
-        </div>
-
-        <div class="panel-card">
-            <div class="panel-title">📅 Прогноз</div>
-            <div class="map-info" id="forecast-info">—</div>
-        </div>
-
+        </aside>
     </div>
 
-    <!-- ================= ROUTE MODE ================= -->
-    <div id="route-panel">
-
-        <div class="panel-card">
-
-            <div class="panel-title">Точка A</div>
-
-            <div class="risk-badge" id="point-a-risk">—</div>
-
-            <div class="point-meta">
-                Координаты:
-                <span id="point-a-coords">—</span>
+    <!-- MODAL WINDOW FOR LOGIN/REGISTER -->
+    <div id="auth-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <div id="login-form" class="auth-form">
+                <h3>Вход</h3>
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Пароль" required>
+                <button id="login-submit">Войти</button>
+                <p>Нет аккаунта? <a href="#" id="show-register">Зарегистрироваться</a></p>
             </div>
-
-        </div>
-
-        <div class="panel-card">
-
-            <div class="panel-title">Точка Б</div>
-
-            <div class="risk-badge" id="point-b-risk">—</div>
-
-            <div class="point-meta">
-                Координаты:
-                <span id="point-b-coords">—</span>
+            <div id="register-form" class="auth-form" style="display: none;">
+                <h3>Регистрация</h3>
+                <input type="text" id="reg-username" placeholder="Имя пользователя" required>
+                <input type="email" id="reg-email" placeholder="Email" required>
+                <input type="password" id="reg-password" placeholder="Пароль" required>
+                <button id="register-submit">Зарегистрироваться</button>
+                <p>Уже есть аккаунт? <a href="#" id="show-login">Войти</a></p>
             </div>
-
         </div>
-
-        <div class="panel-card">
-
-            <div class="panel-title">🛡️ Маршрут</div>
-
-            <div class="route-risk-box" id="route-risk">—</div>
-
-            <div class="route-details" id="route-details">
-                Маршрут ещё не построен
-            </div>
-
-        </div>
-
-        <div class="panel-card">
-
-            <div class="panel-title">💡 Рекомендации</div>
-
-            <div class="route-details" id="comparison">—</div>
-
-        </div>
-
     </div>
-
-</aside>
-
+    <!-- USER ALLERGENS SELECTION (ТОЛЬКО ДЛЯ АВТОРИЗОВАННЫХ) -->
+<div class="side-card" id="user-allergens-card" style="display: none;">
+    <div class="side-card-title">🌿 Мои аллергены</div>
+    <div class="allergen-checkbox-list" id="user-allergens-list">
+        <label class="checkbox-item">
+            <input type="checkbox" value="birch" id="user-allergen-birch">
+            <span>🌳 Берёза</span>
+        </label>
+        <label class="checkbox-item">
+            <input type="checkbox" value="grass" id="user-allergen-grass">
+            <span>🌾 Злаки</span>
+        </label>
+        <label class="checkbox-item">
+            <input type="checkbox" value="ragweed" id="user-allergen-ragweed">
+            <span>🚨 Амброзия</span>
+        </label>
     </div>
+    <button id="save-allergens-btn" class="save-btn">💾 Сохранить выбор</button>
+    <div class="allergen-note" style="font-size: 12px; color: var(--muted); margin-top: 10px;">
+        ⚡ Маршруты будут строиться с учётом выбранных аллергенов
+    </div>
+</div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
-
 </body>
 
 </html>
