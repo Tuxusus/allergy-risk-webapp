@@ -1,0 +1,52 @@
+<div class="admin-card">
+    <h2>➕ Добавить новую опасную зону</h2>
+    <form method="POST" action="/admin/allergen/add-zone">
+        <input type="text" name="name" placeholder="Название зоны" required>
+        <input type="text" name="lat" placeholder="Широта (например: 55.7800)" required>
+        <input type="text" name="lon" placeholder="Долгота (например: 37.6000)" required>
+        <input type="number" name="radius" placeholder="Радиус (м)" value="1500">
+        <select name="allergen_type">
+            <option value="birch">🌳 Берёза</option>
+            <option value="grass">🌾 Злаки</option>
+            <option value="ragweed">🍂 Амброзия</option>
+        </select>
+        <button type="submit" class="save-btn">➕ Добавить зону</button>
+    </form>
+</div>
+
+<div class="admin-card">
+    <h2>⚠️ Существующие опасные зоны</h2>
+    {% if zones %}
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: var(--panel-soft);">
+                <th style="padding: 12px; text-align: left;">Название</th>
+                <th style="padding: 12px; text-align: left;">Аллерген</th>
+                <th style="padding: 12px; text-align: left;">Радиус (м)</th>
+                <th style="padding: 12px; text-align: left;">Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for zone in zones %}
+            <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 10px;">{{ zone.name }}</td>
+                <td style="padding: 10px;">
+                    {% if zone.allergen_type == 'birch' %}🌳 Берёза
+                    {% elif zone.allergen_type == 'grass' %}🌾 Злаки
+                    {% else %}🍂 Амброзия{% endif %}
+                </td>
+                <td style="padding: 10px;">{{ zone.radius }} м</td>
+                <td style="padding: 10px;">
+                    <form method="POST" action="/admin/allergen/delete-zone" style="display:inline" onsubmit="return confirm('Удалить зону «{{ zone.name }}»?');">
+                        <input type="hidden" name="zone_id" value="{{ zone.id }}">
+                        <button type="submit" class="danger-btn" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">🗑️ Удалить</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--text-muted);">📭 Нет добавленных опасных зон</p>
+    {% endif %}
+</div>

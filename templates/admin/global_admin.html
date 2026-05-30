@@ -1,0 +1,47 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
+<div class="admin-card">
+    <h2>📊 Системная статистика</h2>
+    <p><strong>Всего пользователей:</strong> {{ total_users }}</p>
+    <p><strong>Авторизованных пользователей:</strong> {{ auth_users }}</p>
+    <p><strong>Построено маршрутов:</strong> {{ total_routes }}</p>
+    <p><strong>Опасных зон:</strong> {{ total_zones }}</p>
+    
+    <!-- ССЫЛКА НА ЛОГИ -->
+    <a href="/admin/logs" style="display: inline-block; margin-top: 16px; background: #2ecc71; color: white; padding: 10px 20px; border-radius: 12px; text-decoration: none;">📋 Просмотреть логи</a>
+</div>
+
+<div class="admin-card">
+    <h2>👥 Управление администраторами</h2>
+    <form method="POST" action="/admin/global/add-admin">
+        <input type="text" name="email" placeholder="Email пользователя" required>
+        <select name="role">
+            <option value="allergen_admin">Админ по аллергенам</option>
+            <option value="user_admin">Админ по пользователям</option>
+        </select>
+        <button type="submit">Назначить администратором</button>
+    </form>
+</div>
+
+<div class="admin-card">
+    <h2>📋 Список администраторов</h2>
+    <table>
+        <tr><th>ID</th><th>Имя</th><th>Email</th><th>Роль</th><th>Действие</th></tr>
+        {% for admin in admins %}
+        <tr>
+            <td>{{ admin.id }}</td>
+            <td>{{ admin.username }}</td>
+            <td>{{ admin.email }}</td>
+            <td>{{ admin.role }}</td>
+            <td>
+                <form method="POST" action="/admin/global/remove-admin" style="display:inline">
+                    <input type="hidden" name="user_id" value="{{ admin.id }}">
+                    <button type="submit" class="danger">Удалить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

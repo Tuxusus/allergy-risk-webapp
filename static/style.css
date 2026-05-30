@@ -779,3 +779,62 @@ body::after {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--accent-emerald);
 }
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(46, 204, 113, 0.2);
+    border-top-color: var(--accent-emerald);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+/* Админские кнопки в модальном окне */
+.save-btn {
+    background: linear-gradient(135deg, var(--accent-emerald), var(--accent-teal));
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(46, 204, 113, 0.3);
+}
+
+.danger-btn {
+    background: rgba(231, 76, 60, 0.85);
+    transition: all 0.3s ease;
+}
+
+.danger-btn:hover {
+    background: #e74c3c;
+    transform: translateY(-2px);
+}
+
+.admin-card input, .admin-card select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.admin-card input:focus, .admin-card select:focus {
+    outline: none;
+    border-color: var(--accent-emerald);
+}

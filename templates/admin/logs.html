@@ -1,0 +1,27 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
+<div class="admin-card">
+    <h2>📋 Системные логи</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #f0f0f0;">
+                <th style="padding: 10px; text-align: left;">ID</th>
+                <th style="padding: 10px; text-align: left;">Пользователь</th>
+                <th style="padding: 10px; text-align: left;">Действие</th>
+                <th style="padding: 10px; text-align: left;">Дата</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px;">{{ log.id }}</td>
+                <td style="padding: 8px;">{{ log.username }} (ID: {{ log.user_id }})</td>
+                <td style="padding: 8px;">{{ log.action }}</td>
+                <td style="padding: 8px;">{{ log.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

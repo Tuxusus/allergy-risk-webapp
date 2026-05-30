@@ -1,0 +1,84 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
+<div class="admin-card">
+    <h2>👥 Пользователи системы</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #f0f0f0;">
+                <th style="padding: 10px;">ID</th>
+                <th style="padding: 10px;">Имя</th>
+                <th style="padding: 10px;">Email</th>
+                <th style="padding: 10px;">Роль</th>
+                <th style="padding: 10px;">Статус</th>
+                <th style="padding: 10px;">Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px;">{{ user.id }}</td>
+                <td style="padding: 8px;">{{ user.username }}</td>
+                <td style="padding: 8px;">{{ user.email }}</td>
+                <td style="padding: 8px;">{{ user.role }}</td>
+                <td style="padding: 8px;">
+                    {% if user.is_blocked %}
+                        🔒 Заблокирован
+                    {% else %}
+                        ✅ Активен
+                    {% endif %}
+                </td>
+                <td style="padding: 8px;">
+                    {% if user.role == 'user' %}
+                        {% if not user.is_blocked %}
+                        <form method="POST" action="/admin/user/block" style="display:inline">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <button type="submit" class="danger" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">Заблокировать</button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="/admin/user/unblock" style="display:inline">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <button type="submit" style="background: #2ecc71; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">Разблокировать</button>
+                        </form>
+                        {% endif %}
+                    {% else %}
+                        👑 Администратор
+                    {% endif %}
+                </td>
+             </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="admin-card">
+    <h2>📜 История маршрутов пользователей</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #f0f0f0;">
+                <th style="padding: 10px;">Пользователь</th>
+                <th style="padding: 10px;">Откуда</th>
+                <th style="padding: 10px;">Куда</th>
+                <th style="padding: 10px;">Риск</th>
+                <th style="padding: 10px;">Дата</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for route in routes %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px;">{{ route.username }}</td>
+                <td style="padding: 8px;">{{ route.start_lat }}, {{ route.start_lon }}</td>
+                <td style="padding: 8px;">{{ route.end_lat }}, {{ route.end_lon }}</td>
+                <td style="padding: 8px;">{{ route.risk_score }} баллов</td>
+                <td style="padding: 8px;">{{ route.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="admin-card">
+    <h2>📊 Дополнительно</h2>
+    <a href="/admin/user-stats" style="display: inline-block; background: #3498db; color: white; padding: 10px 20px; border-radius: 12px; text-decoration: none;">📊 Статистика пользователей (маршруты)</a>
+</div>
+{% endblock %}

@@ -31,8 +31,30 @@
                 </div>
                 <div id="user-details" style="display: none; margin-top: 10px;">
                     <div id="username-display" style="margin-bottom: 10px; font-weight: bold;"></div>
+                    <button class="auth-btn" id="show-history-btn" style="background: #3498db; margin-bottom: 10px;">📜 Мои маршруты</button>
                     <button class="auth-btn" id="logout-btn" style="background: #e74c3c;">Выйти</button>
                 </div>
+            </div>
+
+            <!-- GLOBAL ADMIN PANEL (только глобальный админ) -->
+            <div class="side-card" id="admin-panel" style="display: none;">
+                <div class="side-card-title">🔧 Администрирование</div>
+                <button id="admin-users-btn" class="auth-btn" style="background: #9b59b6;">👥 Все пользователи</button>
+                <button id="admin-stats-btn" class="auth-btn" style="background: #f39c12;">📊 Системная статистика</button>
+            </div>
+
+            <!-- ALLERGEN ADMIN PANEL (только админ по аллергенам) -->
+            <div class="side-card" id="allergen-admin-panel" style="display: none;">
+                <div class="side-card-title">🌾 Управление аллергенами</div>
+                <button id="allergen-zones-btn" class="auth-btn" style="background: #f39c12;">🗺️ Опасные зоны</button>
+                <button id="allergen-stats-btn" class="auth-btn" style="background: #3498db;">📊 Статистика зон</button>
+            </div>
+
+            <!-- USER ADMIN PANEL (только админ по пользователям) -->
+            <div class="side-card" id="user-admin-panel" style="display: none;">
+                <div class="side-card-title">👥 Управление пользователями</div>
+                <button id="user-list-btn" class="auth-btn" style="background: #3498db;">📋 Пользователи</button>
+                <button id="user-stats-btn" class="auth-btn" style="background: #2ecc71;">📊 Статистика маршрутов</button>
             </div>
 
             <!-- MODES -->
@@ -162,6 +184,14 @@
                 <button id="register-submit">Зарегистрироваться</button>
                 <p>Уже есть аккаунт? <a href="#" id="show-login">Войти</a></p>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL WINDOW FOR ADMIN CONTENT -->
+    <div id="admin-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 800px; max-width: 90%;">
+            <span class="modal-close" id="admin-modal-close">&times;</span>
+            <div id="admin-modal-content"></div>
         </div>
     </div>
 
