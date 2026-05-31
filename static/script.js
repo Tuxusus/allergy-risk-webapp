@@ -1020,7 +1020,7 @@ function init() {
         loadAdminModal("/admin/users-list", "Все пользователи");
     });
     document.getElementById("admin-stats-btn")?.addEventListener("click", () => {
-        loadAdminModal("/admin/global", "Системная статистика");
+        loadAdminModal("/admin/global", "Мониторинг активности");
     });
     document.getElementById("admin-logs-btn")?.addEventListener("click", () => {
         loadAdminModal("/admin/logs", "Системные логи");
@@ -1029,13 +1029,13 @@ function init() {
         loadAdminModal("/admin/allergen", "Управление опасными зонами");
     });
     document.getElementById("allergen-stats-btn")?.addEventListener("click", () => {
-        loadAdminModal("/admin/allergen/stats", "Статистика опасных зон по типам аллергенов");
+        loadAdminModal("/admin/allergen/stats", "Анализ распределения зон");
     });
     document.getElementById("user-list-btn")?.addEventListener("click", () => {
         loadAdminModal("/admin/user", "Управление пользователями");
     });
     document.getElementById("user-stats-btn")?.addEventListener("click", () => {
-        loadAdminModal("/admin/user-stats", "Статистика маршрутов");
+        loadAdminModal("/admin/user-stats", "Анализ направлений");
     });
     
     checkAuth();
