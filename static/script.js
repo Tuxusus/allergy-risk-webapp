@@ -58,6 +58,20 @@ function getAllergenName() {
     return "Амброзия";
 }
 
+function getRiskColorClass(riskLevel) {
+    if (riskLevel === "Низкий") return "risk-low";
+    if (riskLevel === "Средний") return "risk-medium";
+    if (riskLevel === "Высокий") return "risk-high";
+    if (riskLevel === "Очень высокий") return "risk-very-high";
+    return "risk-low";
+}
+
+function updateRiskBadge(element, riskLevel) {
+    element.innerHTML = riskLevel;
+    element.classList.remove("risk-low", "risk-medium", "risk-high", "risk-very-high");
+    element.classList.add(getRiskColorClass(riskLevel));
+}
+
 function getDangerZones() {
     if (currentAllergen === "birch") {
         return [
@@ -221,25 +235,26 @@ async function buildRoute() {
             else if (maxRisk >= 50) riskLevel = "Высокий";
             else if (maxRisk >= 25) riskLevel = "Средний";
             
-            document.getElementById("route-risk").innerHTML = riskLevel;
+            updateRiskBadge(document.getElementById("route-risk"), riskLevel);
+            
             document.getElementById("route-details").innerHTML = `
-                Маршрут для ` + getAllergenName() + ` построен\n\n
-                Длина: ` + distance + `\n
-                Время: ` + duration + `\n\n
-                ` + detourInfo + `\n\n
-                Макс. риск: ` + maxRisk + ` баллов (` + riskLevel + `)
+                <div class="info-line">Маршрут для ` + getAllergenName() + ` построен</div>
+                <div class="info-line">Длина: ` + distance + `</div>
+                <div class="info-line">Время: ` + duration + `</div>
+                <div class="info-line">` + detourInfo + `</div>
+                <div class="info-line">Макс. риск: ` + maxRisk + ` баллов (` + riskLevel + `)</div>
             `;
             
-            let comparisonHtml = `Анализ для ` + getAllergenName() + `:\n\n`;
+            let comparisonHtml = `<div class="info-line">Анализ для ` + getAllergenName() + `:</div>`;
             const dangerZones = getDangerZones();
             if (dangerZones.length > 0) {
-                comparisonHtml += `Избегаемые зоны:\n`;
+                comparisonHtml += `<div class="info-line">Избегаемые зоны:</div>`;
                 for (const zone of dangerZones.slice(0, 3)) {
-                    comparisonHtml += `- ` + zone.name + `\n`;
+                    comparisonHtml += `<div class="info-line">- ` + zone.name + `</div>`;
                 }
-                comparisonHtml += `\n`;
+                comparisonHtml += `<div class="info-line"></div>`;
             }
-            comparisonHtml += needDetour ? `Маршрут оптимизирован для объезда опасных зон.` : `Прямой маршрут безопасен.`;
+            comparisonHtml += `<div class="info-line">` + (needDetour ? "Маршрут оптимизирован для объезда опасных зон." : "Прямой маршрут безопасен.") + `</div>`;
             document.getElementById("comparison").innerHTML = comparisonHtml;
             document.getElementById("route-status").textContent = "Маршрут готов";
             
@@ -277,31 +292,24 @@ async function buildRoute() {
 
 function updateMapInfo(data, coords) {
     const riskLevel = data.risk || "Низкий";
-    let riskColor = "";
-    if (riskLevel === "Низкий") riskColor = "#53B97C";
-    else if (riskLevel === "Средний") riskColor = "#E8A23A";
-    else riskColor = "#D65A63";
-    
-    document.getElementById("main-risk-box").innerHTML = riskLevel;
-    document.getElementById("main-risk-box").style.background = `rgba(${parseInt(riskColor.slice(1,3),16)}, ${parseInt(riskColor.slice(3,5),16)}, ${parseInt(riskColor.slice(5,7),16)}, 0.15)`;
-    document.getElementById("main-risk-box").style.color = riskColor;
+    updateRiskBadge(document.getElementById("main-risk-box"), riskLevel);
     
     document.getElementById("main-info").innerHTML = `
-        Координаты:\n` + coords[0].toFixed(4) + `, ` + coords[1].toFixed(4) + `\n\n
-        Аллерген: ` + getAllergenName() + `\n\n
-        Концентрация: ` + (data.allergen_value || 0) + ` ед.\n\n
-        Индекс риска: ` + (data.score || 0) + ` баллов
+        <div class="info-line">Координаты: ${coords[0].toFixed(4)}°, ${coords[1].toFixed(4)}°</div>
+        <div class="info-line">Аллерген: ${getAllergenName()}</div>
+        <div class="info-line">Концентрация: ${data.allergen_value || 0} ед.</div>
+        <div class="info-line">Индекс риска: ${data.score || 0} баллов</div>
     `;
     
     document.getElementById("weather-info").innerHTML = `
-        Температура: ` + (data.temperature || "—") + `°C\n\n
-        Влажность: ` + (data.humidity || "—") + `%\n\n
-        Ветер: ` + (data.wind_speed || "—") + ` м/с
+        <div class="info-line">Температура: ${data.temperature || "—"}°C</div>
+        <div class="info-line">Влажность: ${data.humidity || "—"}%</div>
+        <div class="info-line">Ветер: ${data.wind_speed || "—"} м/с</div>
     `;
     
     document.getElementById("air-info").innerHTML = `
-        AQI: ` + (data.aqi || "—") + `\n\n
-        PM2.5: ` + (data.pm25 || "—") + ` мкг/м³
+        <div class="info-line">AQI: ${data.aqi || "—"}</div>
+        <div class="info-line">PM2.5: ${data.pm25 || "—"} мкг/м³</div>
     `;
     
     let forecastText = "Данные загружаются...";
@@ -399,7 +407,7 @@ async function selectPoint(coords) {
         myMap.geoObjects.add(pointAMarker);
         
         const riskA = await fetchRisk(coords[0], coords[1]);
-        document.getElementById("point-a-risk").innerHTML = riskA.risk || "Низкий";
+        updateRiskBadge(document.getElementById("point-a-risk"), riskA.risk || "Низкий");
         document.getElementById("point-a-coords").innerHTML = coords[0].toFixed(4) + ", " + coords[1].toFixed(4);
         document.getElementById("point-b-risk").innerHTML = "—";
         document.getElementById("point-b-coords").innerHTML = "—";
@@ -414,7 +422,7 @@ async function selectPoint(coords) {
         myMap.geoObjects.add(pointBMarker);
         
         const riskB = await fetchRisk(coords[0], coords[1]);
-        document.getElementById("point-b-risk").innerHTML = riskB.risk || "Низкий";
+        updateRiskBadge(document.getElementById("point-b-risk"), riskB.risk || "Низкий");
         document.getElementById("point-b-coords").innerHTML = coords[0].toFixed(4) + ", " + coords[1].toFixed(4);
         await buildRoute();
         isSelectingPointA = true;
@@ -455,11 +463,11 @@ async function changeAllergen(type) {
         if (pointA && pointB) await buildRoute();
         if (pointA) {
             const riskA = await fetchRisk(pointA[0], pointA[1]);
-            document.getElementById("point-a-risk").innerHTML = riskA.risk || "Низкий";
+            updateRiskBadge(document.getElementById("point-a-risk"), riskA.risk || "Низкий");
         }
         if (pointB) {
             const riskB = await fetchRisk(pointB[0], pointB[1]);
-            document.getElementById("point-b-risk").innerHTML = riskB.risk || "Низкий";
+            updateRiskBadge(document.getElementById("point-b-risk"), riskB.risk || "Низкий");
         }
     }
 }
@@ -577,21 +585,26 @@ async function showRouteHistory() {
         
         const data = await response.json();
         
+        if (!data.success) {
+            throw new Error(data.error || "Ошибка загрузки истории");
+        }
+        
         const allergenNames = {
             "birch": "Берёза",
             "grass": "Злаки",
             "ragweed": "Амброзия"
         };
         
-        if (data.success && data.history && data.history.length > 0) {
+        if (data.history && data.history.length > 0) {
             let historyHtml = '<div class="history-list">';
             for (let route of data.history.slice(0, 10)) {
-                const startLat = parseFloat(route.start_lat);
-                const startLon = parseFloat(route.start_lon);
-                const endLat = parseFloat(route.end_lat);
-                const endLon = parseFloat(route.end_lon);
-                const riskScore = parseInt(route.risk_score) || 0;
+                const startLat = route.start_lat;
+                const startLon = route.start_lon;
+                const endLat = route.end_lat;
+                const endLon = route.end_lon;
+                const riskScore = route.risk_score || 0;
                 const allergenName = allergenNames[route.allergen_type] || route.allergen_type || "—";
+                const createdDate = route.created_at ? new Date(route.created_at).toLocaleString() : "Дата неизвестна";
                 
                 let riskClass = "risk-low";
                 if (riskScore >= 50) riskClass = "risk-high";
@@ -600,18 +613,18 @@ async function showRouteHistory() {
                 historyHtml += `
                     <div class="history-item">
                         <div class="history-header">
-                            <span class="history-date">${new Date(route.created_at).toLocaleString()}</span>
+                            <span class="history-date">${createdDate}</span>
                             <span class="history-risk ${riskClass}">Риск: ${riskScore} баллов</span>
                         </div>
                         <div class="history-route">
                             <div class="history-point">
                                 <span class="history-point-label">Откуда:</span>
-                                <span class="history-point-coords">${isNaN(startLat) ? "—" : startLat.toFixed(4)}°, ${isNaN(startLon) ? "—" : startLon.toFixed(4)}°</span>
+                                <span class="history-point-coords">${startLat ? startLat.toFixed(4) : "—"}°, ${startLon ? startLon.toFixed(4) : "—"}°</span>
                             </div>
                             <div class="history-arrow">→</div>
                             <div class="history-point">
                                 <span class="history-point-label">Куда:</span>
-                                <span class="history-point-coords">${isNaN(endLat) ? "—" : endLat.toFixed(4)}°, ${isNaN(endLon) ? "—" : endLon.toFixed(4)}°</span>
+                                <span class="history-point-coords">${endLat ? endLat.toFixed(4) : "—"}°, ${endLon ? endLon.toFixed(4) : "—"}°</span>
                             </div>
                         </div>
                         <div class="history-allergen">Аллерген: ${allergenName}</div>
@@ -774,21 +787,21 @@ async function checkAuth() {
                 document.getElementById("global-admin-panel").style.display = "block";
                 document.getElementById("allergen-admin-panel").style.display = "block";
                 document.getElementById("user-management-panel").style.display = "block";
-                document.getElementById("admin-name-display").innerHTML = data.username + " (Глобальный)";
+                document.getElementById("admin-name-display").innerHTML = data.username;
                 document.getElementById("user-badge").innerHTML = data.username;
                 document.getElementById("user-allergens-card").style.display = "none";
             } 
             else if (isAllergenAdmin) {
                 document.getElementById("user-admin-panel").style.display = "block";
                 document.getElementById("allergen-admin-panel").style.display = "block";
-                document.getElementById("admin-name-display").innerHTML = data.username + " (Аллерген-админ)";
+                document.getElementById("admin-name-display").innerHTML = data.username;
                 document.getElementById("user-badge").innerHTML = data.username;
                 document.getElementById("user-allergens-card").style.display = "none";
             }
             else if (isUserAdmin) {
                 document.getElementById("user-admin-panel").style.display = "block";
                 document.getElementById("user-management-panel").style.display = "block";
-                document.getElementById("admin-name-display").innerHTML = data.username + " (User-админ)";
+                document.getElementById("admin-name-display").innerHTML = data.username;
                 document.getElementById("user-badge").innerHTML = data.username;
                 document.getElementById("user-allergens-card").style.display = "none";
             }
@@ -812,6 +825,8 @@ async function checkAuth() {
             document.getElementById("user-badge").innerHTML = "Гость";
             
             currentAllergen = "birch";
+            document.querySelectorAll(".allergen-item").forEach(btn => btn.classList.remove("active"));
+            document.querySelector(`[data-allergen="birch"]`).classList.add("active");
         }
     } catch (error) {
         console.error("Ошибка проверки авторизации:", error);
@@ -868,32 +883,47 @@ async function register(username, email, password) {
 
 async function logout() {
     try {
-        await fetch("/api/logout", { method: "POST", credentials: "include" });
-        currentUser = null;
-        await checkAuth();
+        const response = await fetch("/api/logout", { 
+            method: "POST", 
+            credentials: "include" 
+        });
         
-        if (pointAMarker) myMap.geoObjects.remove(pointAMarker);
-        if (pointBMarker) myMap.geoObjects.remove(pointBMarker);
-        if (currentRoute) myMap.geoObjects.remove(currentRoute);
-        pointA = null;
-        pointB = null;
-        pointAMarker = null;
-        pointBMarker = null;
-        currentRoute = null;
-        isSelectingPointA = true;
-        
-        document.getElementById("route-status").textContent = "Выберите точку A";
-        document.getElementById("point-a-risk").innerHTML = "—";
-        document.getElementById("point-b-risk").innerHTML = "—";
-        document.getElementById("point-a-coords").innerHTML = "—";
-        document.getElementById("point-b-coords").innerHTML = "—";
-        document.getElementById("route-risk").innerHTML = "—";
-        document.getElementById("route-details").innerHTML = "Маршрут ещё не построен";
-        
-        await changeAllergen("birch");
-        showToast("Вы вышли из системы");
+        if (response.ok) {
+            currentUser = null;
+            await checkAuth();
+            
+            if (pointAMarker) myMap.geoObjects.remove(pointAMarker);
+            if (pointBMarker) myMap.geoObjects.remove(pointBMarker);
+            if (currentRoute) myMap.geoObjects.remove(currentRoute);
+            
+            pointA = null;
+            pointB = null;
+            pointAMarker = null;
+            pointBMarker = null;
+            currentRoute = null;
+            isSelectingPointA = true;
+            
+            document.getElementById("route-status").textContent = "Выберите точку A";
+            document.getElementById("point-a-risk").innerHTML = "—";
+            document.getElementById("point-b-risk").innerHTML = "—";
+            document.getElementById("point-a-coords").innerHTML = "—";
+            document.getElementById("point-b-coords").innerHTML = "—";
+            document.getElementById("route-risk").innerHTML = "—";
+            document.getElementById("route-details").innerHTML = "Маршрут ещё не построен";
+            
+            await changeAllergen("birch");
+            showToast("Вы вышли из системы");
+            
+            // Перенаправляем на главную страницу
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 1000);
+        } else {
+            showToast("Ошибка при выходе", "error");
+        }
     } catch (error) {
         console.error("Ошибка при выходе:", error);
+        showToast("Ошибка при выходе", "error");
     }
 }
 
@@ -904,11 +934,18 @@ async function logout() {
 const modal = document.getElementById("auth-modal");
 const modalClose = document.querySelector(".modal-close");
 
-function openModal() { 
+function openLoginModal() { 
     modal.style.display = "flex";
     document.getElementById("login-form").style.display = "block";
     document.getElementById("register-form").style.display = "none";
 }
+
+function openRegisterModal() { 
+    modal.style.display = "flex";
+    document.getElementById("login-form").style.display = "none";
+    document.getElementById("register-form").style.display = "block";
+}
+
 function closeModal() {
     modal.style.display = "none";
     document.getElementById("login-form").style.display = "block";
@@ -940,8 +977,8 @@ function init() {
     document.getElementById("reset-route-btn").addEventListener("click", resetRoute);
     document.getElementById("save-allergens-btn").addEventListener("click", saveUserAllergens);
     
-    document.getElementById("login-btn").addEventListener("click", openModal);
-    document.getElementById("register-btn").addEventListener("click", openModal);
+    document.getElementById("login-btn").addEventListener("click", openLoginModal);
+    document.getElementById("register-btn").addEventListener("click", openRegisterModal);
     if (modalClose) modalClose.addEventListener("click", closeModal);
     window.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
     
@@ -962,8 +999,15 @@ function init() {
     document.getElementById("register-submit")?.addEventListener("click", async () => {
         await register(document.getElementById("reg-username").value, document.getElementById("reg-email").value, document.getElementById("reg-password").value);
     });
-    document.getElementById("logout-btn")?.addEventListener("click", logout);
-    document.getElementById("logout-admin-btn")?.addEventListener("click", logout);
+    
+    // Универсальная кнопка выхода - для всех ролей
+    const logoutButtons = document.querySelectorAll("#logout-btn, #logout-admin-btn");
+    logoutButtons.forEach(btn => {
+        if (btn) {
+            btn.addEventListener("click", logout);
+        }
+    });
+    
     document.getElementById("show-history-btn")?.addEventListener("click", showRouteHistory);
     
     document.querySelectorAll(".allergen-item").forEach(button => {
@@ -985,7 +1029,7 @@ function init() {
         loadAdminModal("/admin/allergen", "Управление опасными зонами");
     });
     document.getElementById("allergen-stats-btn")?.addEventListener("click", () => {
-        loadAdminModal("/admin/allergen/stats", "Статистика зон");
+        loadAdminModal("/admin/allergen/stats", "Статистика опасных зон по типам аллергенов");
     });
     document.getElementById("user-list-btn")?.addEventListener("click", () => {
         loadAdminModal("/admin/user", "Управление пользователями");

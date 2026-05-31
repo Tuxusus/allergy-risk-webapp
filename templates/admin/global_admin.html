@@ -28,13 +28,19 @@
     <h2>Назначить администратора</h2>
     <form method="POST" action="/admin/global/add-admin" class="admin-form">
         <div class="form-group">
-            <input type="email" name="email" placeholder="Email пользователя" required>
-            <select name="role">
-                <option value="allergen_admin">Администратор по аллергенам</option>
-                <option value="user_admin">Администратор по пользователям</option>
-            </select>
+            <div class="form-field">
+                <label>Email пользователя</label>
+                <input type="email" name="email" placeholder="Email пользователя" required>
+            </div>
+            <div class="form-field">
+                <label>Роль</label>
+                <select name="role">
+                    <option value="allergen_admin">Администратор по аллергенам</option>
+                    <option value="user_admin">Администратор по пользователям</option>
+                </select>
+            </div>
         </div>
-        <button type="submit" class="btn-primary">Назначить</button>
+        <button type="submit" class="btn btn-primary">Назначить</button>
     </form>
 </div>
 
@@ -54,24 +60,22 @@
         <tbody>
             {% for admin in admins %}
             <tr>
-                <td>{{ admin.id }}</td>
-                <td><strong>{{ admin.username }}</strong></td>
-                <td>{{ admin.email }}</td>
+                <td>{{ admin.id }}</span>
+                <td><strong>{{ admin.username }}</strong></span>
+                <td>{{ admin.email }}</span>
                 <td>
                     {% if admin.role == 'allergen_admin' %}
                         Аллерген-администратор
                     {% elif admin.role == 'user_admin' %}
                         Пользователь-администратор
-                    {% else %}
-                        {{ admin.role }}
                     {% endif %}
-                </td>
+                </span>
                 <td>
                     <form method="POST" action="/admin/global/remove-admin" onsubmit="return confirm('Снять права администратора с пользователя {{ admin.username }}?');" style="margin:0;">
                         <input type="hidden" name="user_id" value="{{ admin.id }}">
-                        <button type="submit" class="btn-remove">Снять права</button>
+                        <button type="submit" class="btn btn-danger-pale btn-sm">Снять права</button>
                     </form>
-                </td>
+                </span>
             </tr>
             {% endfor %}
         </tbody>

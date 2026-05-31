@@ -2,7 +2,6 @@
 
 {% block content %}
 <div class="admin-card">
-    <h2>Системные логи</h2>
     {% if logs %}
     <table class="admin-table">
         <thead>
@@ -16,15 +15,10 @@
         <tbody>
             {% for log in logs %}
             <tr>
-                <td>#{{ loop.index }}</td>
-                <td>
-                    <strong>{{ log.username }}</strong>
-                    {% if log.user_id %}
-                        <span class="badge">ID: {{ log.user_id }}</span>
-                    {% endif %}
-                </td>
-                <td class="action-cell">{{ log.action }}</td>
-                <td class="coords">{{ log.created_at }}</td>
+                <td><span class="user-id-badge">{{ log.user_id }}</span></span>
+                <td><strong>{{ log.username }}</strong></span>
+                <td class="action-cell">{{ log.action }}</span>
+                <td class="coords">{{ log.created_at }}</span>
             </tr>
             {% endfor %}
         </tbody>

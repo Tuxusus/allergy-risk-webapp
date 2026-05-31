@@ -186,6 +186,42 @@ body::before {
     box-shadow: 0 8px 28px rgba(231, 76, 60, 0.2);
 }
 
+/* Бледная красная кнопка (Заблокировать, Удалить, Снять права) */
+.btn-danger-pale {
+    background: rgba(231, 76, 60, 0.12);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.25);
+}
+
+.btn-danger-pale:hover {
+    background: #e74c3c;
+    color: white;
+    transform: translateY(-2px);
+    border-color: #e74c3c;
+}
+
+/* Бледная зеленая кнопка (Разблокировать) */
+.btn-success-pale {
+    background: rgba(46, 204, 113, 0.12);
+    color: #2ecc71;
+    border: 1px solid rgba(46, 204, 113, 0.25);
+}
+
+.btn-success-pale:hover {
+    background: #2ecc71;
+    color: white;
+    transform: translateY(-2px);
+    border-color: #2ecc71;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    width: auto;
+    display: inline-block;
+    margin-bottom: 0;
+}
+
 .allergen-item {
     width: 100%;
     padding: 12px 16px;
@@ -386,21 +422,21 @@ body::before {
 }
 
 .risk-low {
-    color: var(--risk-low);
-    border-color: var(--risk-low);
+    color: #2ecc71;
     background: rgba(46, 204, 113, 0.1);
+    border-color: #2ecc71;
 }
 
 .risk-medium {
-    color: var(--risk-medium);
-    border-color: var(--risk-medium);
+    color: #f39c12;
     background: rgba(243, 156, 18, 0.1);
+    border-color: #f39c12;
 }
 
 .risk-high, .risk-very-high {
-    color: var(--risk-high);
-    border-color: var(--risk-high);
+    color: #e74c3c;
     background: rgba(231, 76, 60, 0.1);
+    border-color: #e74c3c;
 }
 
 .map-main-risk {
@@ -624,111 +660,12 @@ body::before {
     font-size: 13px;
 }
 
-/* ===================== ANIMATIONS ===================== */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.panel-card, .side-card, .topbar {
-    animation: slideIn 0.3s ease-out;
-}
-
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 16px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.toast-message {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 12px 20px;
-    border-radius: 14px;
-    z-index: 10000;
-    animation: fadeInOut 3s ease;
-    font-weight: 500;
-    font-size: 13px;
-}
-
-.toast-success {
-    background: var(--primary);
-    color: white;
-}
-
-.toast-error {
-    background: var(--risk-high);
-    color: white;
-}
-
-@keyframes fadeInOut {
-    0% { opacity: 0; transform: translateY(20px); }
-    15% { opacity: 1; transform: translateY(0); }
-    85% { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(20px); }
-}
-
-/* ===================== RESPONSIVE ===================== */
-@media (max-width: 1200px) {
-    .app-shell {
-        grid-template-columns: 280px 1fr 340px;
-        gap: 16px;
-    }
-}
-
-@media (max-width: 1000px) {
-    .app-shell {
-        grid-template-columns: 1fr;
-    }
-    
-    .sidebar {
-        position: static;
-        margin-bottom: 16px;
-    }
-    
-    .rightbar {
-        order: 2;
-    }
-    
-    .main-layout {
-        order: 1;
-    }
-}
-
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--border);
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 10px;
-}
-/* ===================== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ===================== */
-
-/* Кнопки админки */
-.btn-delete, .btn-remove, .btn-block, .btn-unblock {
+/* ===================== КНОПКИ ДЛЯ АДМИН-ПАНЕЛИ ===================== */
+.btn-delete, .btn-remove, .btn-block {
+    background: rgba(231, 76, 60, 0.12);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.25);
     padding: 6px 14px;
-    border: none;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
@@ -736,62 +673,31 @@ body::before {
     transition: all 0.3s ease;
 }
 
-.btn-delete {
-    background: #fee2e2;
-    color: #e74c3c;
-    border: 1px solid #fecaca;
-}
-
-.btn-delete:hover {
+.btn-delete:hover, .btn-remove:hover, .btn-block:hover {
     background: #e74c3c;
     color: white;
-}
-
-.btn-remove {
-    background: #fef3c7;
-    color: #f59e0b;
-    border: 1px solid #fde68a;
-}
-
-.btn-remove:hover {
-    background: #f59e0b;
-    color: white;
-}
-
-.btn-block {
-    background: #fee2e2;
-    color: #e74c3c;
-    border: 1px solid #fecaca;
-}
-
-.btn-block:hover {
-    background: #e74c3c;
-    color: white;
+    border-color: #e74c3c;
 }
 
 .btn-unblock {
-    background: #d1fae5;
-    color: #10b981;
-    border: 1px solid #a7f3d0;
+    background: rgba(46, 204, 113, 0.12);
+    color: #2ecc71;
+    border: 1px solid rgba(46, 204, 113, 0.25);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
 .btn-unblock:hover {
-    background: #10b981;
+    background: #2ecc71;
     color: white;
+    border-color: #2ecc71;
 }
 
-/* Ячейка с действиями по центру */
-.action-cell {
-    text-align: center;
-}
-
-/* Количество маршрутов по центру */
-.routes-count {
-    text-align: center;
-    font-weight: 600;
-}
-
-/* Бейджи риска */
+/* ===================== БЕЙДЖИ РИСКА ===================== */
 .risk-low-badge, .risk-medium-badge, .risk-high-badge {
     display: inline-block;
     padding: 4px 12px;
@@ -816,7 +722,7 @@ body::before {
     color: #e74c3c;
 }
 
-/* История маршрутов - красивый дизайн */
+/* ===================== ИСТОРИЯ МАРШРУТОВ ===================== */
 .history-list {
     display: flex;
     flex-direction: column;
@@ -927,4 +833,153 @@ body::before {
 
 .error-message {
     color: #e74c3c;
+}
+
+.info-line {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.info-line:last-child {
+    margin-bottom: 0;
+}
+
+/* ===================== СТАТУСЫ ПОЛЬЗОВАТЕЛЕЙ ===================== */
+.status-active {
+    color: #2ecc71;
+    font-weight: 600;
+}
+
+.status-blocked {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.routes-count {
+    text-align: center;
+    font-weight: 600;
+}
+
+.action-cell {
+    text-align: center;
+}
+
+.user-id-badge {
+    background: #a8e6cf;
+    color: #27ae60;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    margin-left: 8px;
+    font-weight: normal;
+}
+
+.zone-name {
+    font-weight: 600;
+}
+
+.coords {
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* ===================== АНИМАЦИИ ===================== */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.panel-card, .side-card, .topbar {
+    animation: slideIn 0.3s ease-out;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.toast-message {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 14px;
+    z-index: 10000;
+    animation: fadeInOut 3s ease;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.toast-success {
+    background: var(--primary);
+    color: white;
+}
+
+.toast-error {
+    background: var(--risk-high);
+    color: white;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(20px); }
+    15% { opacity: 1; transform: translateY(0); }
+    85% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(20px); }
+}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 1200px) {
+    .app-shell {
+        grid-template-columns: 280px 1fr 340px;
+        gap: 16px;
+    }
+}
+
+@media (max-width: 1000px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+    
+    .sidebar {
+        position: static;
+        margin-bottom: 16px;
+    }
+    
+    .rightbar {
+        order: 2;
+    }
+    
+    .main-layout {
+        order: 1;
+    }
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--border);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
 }

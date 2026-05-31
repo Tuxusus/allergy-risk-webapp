@@ -2,7 +2,6 @@
 
 {% block content %}
 <div class="admin-card">
-    <h2>Статистика пользователей</h2>
     {% if stats %}
     <table class="admin-table">
         <thead>
@@ -10,7 +9,7 @@
                 <th>ID</th>
                 <th>Имя пользователя</th>
                 <th>Email</th>
-                <th>Количество маршрутов</th>
+                <th class="routes-count">Количество маршрутов</th>
                 <th>Используемые аллергены</th>
             </tr>
         </thead>

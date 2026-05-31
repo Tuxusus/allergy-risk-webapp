@@ -299,7 +299,8 @@ class RouteHistory:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT * FROM route_history 
+            SELECT id, start_lat, start_lon, end_lat, end_lon, risk_score, allergen_type, created_at
+            FROM route_history 
             WHERE user_id = %s 
             ORDER BY created_at DESC 
             LIMIT %s
@@ -438,9 +439,9 @@ WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
 AIR_API_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 ALLERGENS = {
-    "birch": {"label": "Берёза", "field": "birch_pollen", "desc": "основной весенний аллерген", "icon": "🌳"},
-    "grass": {"label": "Злаки", "field": "grass_pollen", "desc": "сезонный травяной аллерген", "icon": "🌾"},
-    "ragweed": {"label": "Амброзия", "field": "ragweed_pollen", "desc": "высокоаллергенное растение", "icon": "🌿"}
+    "birch": {"label": "Берёза", "field": "birch_pollen", "desc": "основной весенний аллерген"},
+    "grass": {"label": "Злаки", "field": "grass_pollen", "desc": "сезонный травяной аллерген"},
+    "ragweed": {"label": "Амброзия", "field": "ragweed_pollen", "desc": "высокоаллергенное растение"}
 }
 
 HTTP_HEADERS = {"User-Agent": "AllergyRiskMVP/1.0"}
@@ -687,6 +688,11 @@ def logout():
     session.clear()
     return jsonify({"success": True, "message": "Вы вышли из системы"})
 
+@app.route("/logout")
+def logout_get():
+    session.clear()
+    return redirect("/")
+
 @app.route("/api/user/me", methods=["GET"])
 def get_current_user_api():
     if 'user_id' in session:
@@ -776,7 +782,6 @@ def remove_user_allergen(allergen_type):
 def index():
     return render_template("index.html")
 
-# Статические файлы
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
@@ -822,29 +827,70 @@ def api_risk():
 @app.route("/api/route/save", methods=["POST"])
 @regular_user_required
 def save_route():
-    data = request.get_json()
-    user_id = session['user_id']
-    
-    RouteHistory.save(
-        user_id,
-        data.get("start_lat"),
-        data.get("start_lon"),
-        data.get("end_lat"),
-        data.get("end_lon"),
-        data.get("risk_score", 0),
-        data.get("allergen_type", "birch")
-    )
-    
-    SystemLog.add(user_id, session['username'], f"Сохранён маршрут (риск: {data.get('risk_score', 0)})")
-    
-    return jsonify({"success": True, "message": "Маршрут сохранён"})
+    try:
+        data = request.get_json()
+        user_id = session['user_id']
+        
+        start_lat = data.get("start_lat")
+        start_lon = data.get("start_lon")
+        end_lat = data.get("end_lat")
+        end_lon = data.get("end_lon")
+        risk_score = data.get("risk_score", 0)
+        allergen_type = data.get("allergen_type", "birch")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO route_history (user_id, start_lat, start_lon, end_lat, end_lon, risk_score, allergen_type)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (user_id, start_lat, start_lon, end_lat, end_lon, risk_score, allergen_type))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        SystemLog.add(user_id, session['username'], f"Сохранён маршрут (риск: {risk_score})")
+        
+        return jsonify({"success": True, "message": "Маршрут сохранён"})
+    except Exception as e:
+        print(f"Ошибка сохранения маршрута: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/route/history", methods=["GET"])
 @regular_user_required
 def get_route_history():
-    limit = request.args.get("limit", 20, type=int)
-    history = RouteHistory.get_user_history(session['user_id'], limit)
-    return jsonify({"success": True, "history": history, "count": len(history)})
+    try:
+        limit = request.args.get("limit", 20, type=int)
+        user_id = session['user_id']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT id, start_lat, start_lon, end_lat, end_lon, risk_score, allergen_type, created_at
+            FROM route_history 
+            WHERE user_id = %s 
+            ORDER BY created_at DESC 
+            LIMIT %s
+        """, (user_id, limit))
+        history = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        for route in history:
+            if route['start_lat'] is not None:
+                route['start_lat'] = float(route['start_lat'])
+            if route['start_lon'] is not None:
+                route['start_lon'] = float(route['start_lon'])
+            if route['end_lat'] is not None:
+                route['end_lat'] = float(route['end_lat'])
+            if route['end_lon'] is not None:
+                route['end_lon'] = float(route['end_lon'])
+            if route['created_at'] is not None:
+                route['created_at'] = route['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+        
+        return jsonify({"success": True, "history": history, "count": len(history)})
+    except Exception as e:
+        print(f"Ошибка получения истории: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # =====================
 # АДМИН-ПАНЕЛЬ (ГЛОБАЛЬНЫЙ АДМИН)
@@ -873,8 +919,6 @@ def admin_global():
     cursor.execute("SELECT COUNT(*) as count FROM system_logs")
     total_logs = cursor.fetchone()['count']
     
-    # ПОЛУЧАЕМ ВСЕХ АДМИНИСТРАТОРОВ (allergen_admin и user_admin)
-    # НЕ включаем глобального админа в этот список
     cursor.execute("""
         SELECT id, username, email, role 
         FROM users 
@@ -981,7 +1025,7 @@ def admin_users_list():
 @allergen_admin_required
 def admin_allergen():
     user = get_current_user_obj()
-    zones = DangerZone.get_all()  # Получаем ВСЕ зоны из БД
+    zones = DangerZone.get_all()
     return render_template("admin/allergen_admin.html", username=user.username, role=user.role, zones=zones)
 
 @app.route("/admin/allergen/add-zone", methods=["POST"])
@@ -1014,7 +1058,6 @@ def delete_zone():
     zone_id = request.form.get("zone_id")
     
     if zone_id:
-        # Получаем имя зоны для лога
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT name FROM danger_zones WHERE id = %s", (zone_id,))
@@ -1046,7 +1089,7 @@ def allergen_stats():
     cursor.close()
     conn.close()
     
-    allergen_names = {"birch": "🌳 Берёза", "grass": "🌾 Злаки", "ragweed": "🌿 Амброзия"}
+    allergen_names = {"birch": "Берёза", "grass": "Злаки", "ragweed": "Амброзия"}
     for s in stats:
         s['allergen_label'] = allergen_names.get(s['allergen_type'], s['allergen_type'])
     

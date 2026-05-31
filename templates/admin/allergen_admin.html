@@ -5,17 +5,32 @@
     <h2>Добавить новую опасную зону</h2>
     <form method="POST" action="/admin/allergen/add-zone" class="admin-form">
         <div class="form-group">
-            <input type="text" name="name" placeholder="Название зоны" required>
-            <input type="text" name="lat" placeholder="Широта" required>
-            <input type="text" name="lon" placeholder="Долгота" required>
-            <input type="number" name="radius" placeholder="Радиус (м)" value="1500">
-            <select name="allergen_type">
-                <option value="birch">Берёза</option>
-                <option value="grass">Злаки</option>
-                <option value="ragweed">Амброзия</option>
-            </select>
+            <div class="form-field">
+                <label>Название зоны</label>
+                <input type="text" name="name" placeholder="Название зоны" required>
+            </div>
+            <div class="form-field">
+                <label>Широта</label>
+                <input type="text" name="lat" placeholder="Широта" required>
+            </div>
+            <div class="form-field">
+                <label>Долгота</label>
+                <input type="text" name="lon" placeholder="Долгота" required>
+            </div>
+            <div class="form-field">
+                <label>Радиус (м)</label>
+                <input type="number" name="radius" placeholder="Радиус (м)" value="1500">
+            </div>
+            <div class="form-field">
+                <label>Аллерген</label>
+                <select name="allergen_type">
+                    <option value="birch">Берёза</option>
+                    <option value="grass">Злаки</option>
+                    <option value="ragweed">Амброзия</option>
+                </select>
+            </div>
         </div>
-        <button type="submit" class="btn-primary">Добавить зону</button>
+        <button type="submit" class="btn btn-primary">Добавить зону</button>
     </form>
 </div>
 
@@ -36,10 +51,10 @@
         <tbody>
             {% for zone in zones %}
             <tr>
-                <td>{{ zone.id }}</td>
-                <td class="zone-name">{{ zone.name }}</td>
-                <td class="coords">{{ zone.lat }}, {{ zone.lon }}</td>
-                <td>{{ zone.radius }} м</td>
+                <td>{{ zone.id }}</span>
+                <td class="zone-name">{{ zone.name }}</span>
+                <td class="coords">{{ zone.lat }}, {{ zone.lon }}</span>
+                <td>{{ zone.radius }} м</span>
                 <td>
                     {% if zone.allergen_type == 'birch' %}
                         Берёза
@@ -48,13 +63,13 @@
                     {% else %}
                         Амброзия
                     {% endif %}
-                </td>
+                </span>
                 <td>
-                    <form method="POST" action="/admin/allergen/delete-zone" onsubmit="return confirm('Удалить зону ' + '{{ zone.name }}' + '?');" style="margin:0;">
+                    <form method="POST" action="/admin/allergen/delete-zone" onsubmit="return confirm('Удалить зону {{ zone.name }}?');" style="margin:0;">
                         <input type="hidden" name="zone_id" value="{{ zone.id }}">
-                        <button type="submit" class="btn-delete">Удалить</button>
+                        <button type="submit" class="btn btn-danger-pale btn-sm">Удалить</button>
                     </form>
-                </td>
+                </span>
             </tr>
             {% endfor %}
         </tbody>

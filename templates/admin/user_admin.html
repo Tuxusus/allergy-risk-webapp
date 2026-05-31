@@ -18,30 +18,30 @@
         <tbody>
             {% for user in users %}
             <tr>
-                <td>{{ user.id }}</td>
-                <td><strong>{{ user.username }}</strong></td>
-                <td>{{ user.email }}</td>
-                <td class="coords">{{ user.created_at }}</td>
+                <td>{{ user.id }}</span>
+                <td><strong>{{ user.username }}</strong></span>
+                <td>{{ user.email }}</span>
+                <td class="coords">{{ user.created_at }}</span>
                 <td>
                     {% if user.is_blocked %}
                         <span class="status-blocked">Заблокирован</span>
                     {% else %}
                         <span class="status-active">Активен</span>
                     {% endif %}
-                </td>
+                </span>
                 <td>
                     {% if not user.is_blocked %}
                     <form method="POST" action="/admin/user/block" style="display:inline" onsubmit="return confirm('Заблокировать пользователя {{ user.username }}?');">
                         <input type="hidden" name="user_id" value="{{ user.id }}">
-                        <button type="submit" class="btn-block">Заблокировать</button>
+                        <button type="submit" class="btn btn-danger-pale btn-sm">Заблокировать</button>
                     </form>
                     {% else %}
                     <form method="POST" action="/admin/user/unblock" style="display:inline" onsubmit="return confirm('Разблокировать пользователя {{ user.username }}?');">
                         <input type="hidden" name="user_id" value="{{ user.id }}">
-                        <button type="submit" class="btn-unblock">Разблокировать</button>
+                        <button type="submit" class="btn btn-success-pale btn-sm">Разблокировать</button>
                     </form>
                     {% endif %}
-                </td>
+                </span>
             </tr>
             {% endfor %}
         </tbody>
@@ -68,9 +68,9 @@
         <tbody>
             {% for route in routes %}
             <tr>
-                <td><strong>{{ route.username }}</strong></td>
-                <td class="coords">{{ route.start_lat }}, {{ route.start_lon }}</td>
-                <td class="coords">{{ route.end_lat }}, {{ route.end_lon }}</td>
+                <td><strong>{{ route.username }}</strong></span>
+                <td class="coords">{{ route.start_lat }}, {{ route.start_lon }}</span>
+                <td class="coords">{{ route.end_lat }}, {{ route.end_lon }}</span>
                 <td class="risk-cell">
                     {% if route.risk_score < 25 %}
                         <span class="risk-low-badge">{{ route.risk_score }}</span>
@@ -79,13 +79,13 @@
                     {% else %}
                         <span class="risk-high-badge">{{ route.risk_score }}</span>
                     {% endif %}
-                </td>
+                </span>
                 <td>
                     {% if route.allergen_type == 'birch' %}Берёза
                     {% elif route.allergen_type == 'grass' %}Злаки
                     {% else %}Амброзия{% endif %}
-                </td>
-                <td class="coords">{{ route.created_at }}</td>
+                </span>
+                <td class="coords">{{ route.created_at }}</span>
             </tr>
             {% endfor %}
         </tbody>
