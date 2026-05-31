@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
-from flask import Flask, jsonify, render_template, request, session, redirect, url_for
+from flask import Flask, jsonify, render_template, request, session, redirect, url_for, send_from_directory
 from flask_cors import CORS
 import mysql.connector
 import bcrypt
@@ -10,6 +10,7 @@ import time
 import math
 from datetime import timedelta
 from functools import wraps
+import os
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
@@ -31,7 +32,6 @@ def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
 
 def init_db():
-    """Инициализация базы данных MySQL (создание таблиц)"""
     try:
         conn = mysql.connector.connect(
             host=DB_CONFIG['host'],
@@ -43,7 +43,6 @@ def init_db():
         cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
         cursor.execute(f"USE {DB_CONFIG['database']}")
         
-        # Таблица пользователей с is_blocked
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -56,7 +55,6 @@ def init_db():
             )
         """)
         
-        # Таблица аллергенов пользователя
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS user_allergens (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -69,7 +67,6 @@ def init_db():
             )
         """)
         
-        # Таблица опасных зон
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS danger_zones (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -79,11 +76,12 @@ def init_db():
                 radius INT DEFAULT 1500,
                 allergen_type VARCHAR(30) NOT NULL,
                 severity INT DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_by INT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
             )
         """)
         
-        # Таблица истории маршрутов
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS route_history (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -99,7 +97,6 @@ def init_db():
             )
         """)
         
-        # Таблица системных логов
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS system_logs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -110,18 +107,6 @@ def init_db():
             )
         """)
         
-        # Таблица статей
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS articles (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(200) NOT NULL,
-                content TEXT NOT NULL,
-                category VARCHAR(50) DEFAULT 'general',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Таблица избранных мест
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS favorite_places (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -134,12 +119,61 @@ def init_db():
             )
         """)
         
+        # Создание тестового глобального администратора
+        test_admin_email = "admin@allergy.com"
+        test_admin_password = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt())
+        cursor.execute("SELECT id FROM users WHERE email = %s", (test_admin_email,))
+        if not cursor.fetchone():
+            cursor.execute("""
+                INSERT INTO users (username, email, password_hash, role) 
+                VALUES (%s, %s, %s, 'global_admin')
+            """, ("GlobalAdmin", test_admin_email, test_admin_password.decode('utf-8')))
+            
+            test_password = bcrypt.hashpw("user123".encode('utf-8'), bcrypt.gensalt())
+            cursor.execute("""
+                INSERT INTO users (username, email, password_hash, role) 
+                VALUES (%s, %s, %s, 'user')
+            """, ("TestUser1", "user1@test.com", test_password.decode('utf-8')))
+            
+            cursor.execute("""
+                INSERT INTO users (username, email, password_hash, role) 
+                VALUES (%s, %s, %s, 'user')
+            """, ("TestUser2", "user2@test.com", test_password.decode('utf-8')))
+            
+            cursor.execute("SELECT id FROM users WHERE email = 'user1@test.com'")
+            user1 = cursor.fetchone()
+            if user1:
+                cursor.execute("""
+                    INSERT INTO user_allergens (user_id, allergen_type, severity) 
+                    VALUES (%s, 'birch', 3), (%s, 'grass', 2)
+                """, (user1[0], user1[0]))
+            
+            cursor.execute("SELECT id FROM users WHERE email = 'user2@test.com'")
+            user2 = cursor.fetchone()
+            if user2:
+                cursor.execute("""
+                    INSERT INTO user_allergens (user_id, allergen_type, severity) 
+                    VALUES (%s, 'ragweed', 3)
+                """, (user2[0],))
+            
+            # Добавление тестовых опасных зон
+            cursor.execute("""
+                INSERT INTO danger_zones (name, lat, lon, radius, allergen_type, created_by) 
+                VALUES 
+                ('Парк Горького', 55.7355, 37.6050, 1500, 'birch', 1),
+                ('ВДНХ', 55.8300, 37.6300, 1800, 'grass', 1),
+                ('Царицыно', 55.6150, 37.6800, 1200, 'ragweed', 1),
+                ('Сокольники', 55.8000, 37.6800, 1400, 'birch', 1),
+                ('Измайлово', 55.7900, 37.7600, 1300, 'grass', 1),
+                ('Лосиный остров', 55.8300, 37.6500, 2000, 'birch', 1)
+            """)
+        
         conn.commit()
         cursor.close()
         conn.close()
-        print("✅ База данных MySQL успешно инициализирована")
+        print("База данных MySQL успешно инициализирована")
     except Exception as e:
-        print(f"❌ Ошибка инициализации MySQL: {e}")
+        print(f"Ошибка инициализации MySQL: {e}")
 
 init_db()
 
@@ -166,9 +200,41 @@ class User:
         if user_data:
             return User(user_data['id'], user_data['username'], user_data['email'], user_data['role'], user_data['is_blocked'])
         return None
+    
+    @staticmethod
+    def get_all_users():
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, username, email, role, is_blocked, created_at FROM users ORDER BY id")
+        users = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return users
+    
+    @staticmethod
+    def update_role(user_id, new_role):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET role = %s WHERE id = %s", (new_role, user_id))
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        return affected
+    
+    @staticmethod
+    def toggle_block(user_id, block_status):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET is_blocked = %s WHERE id = %s", (block_status, user_id))
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        return affected
 
 class DangerZone:
-    def __init__(self, id, name, lat, lon, radius, allergen_type, severity, created_at=None):
+    def __init__(self, id=None, name=None, lat=None, lon=None, radius=None, allergen_type=None, severity=1, created_by=None):
         self.id = id
         self.name = name
         self.lat = lat
@@ -176,33 +242,44 @@ class DangerZone:
         self.radius = radius
         self.allergen_type = allergen_type
         self.severity = severity
-        self.created_at = created_at
+        self.created_by = created_by
     
     @staticmethod
     def get_all(allergen_type=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         if allergen_type:
-            cursor.execute("SELECT id, name, lat, lon, radius, allergen_type, severity, created_at FROM danger_zones WHERE allergen_type = %s", (allergen_type,))
+            cursor.execute("SELECT id, name, lat, lon, radius, allergen_type, severity, created_by FROM danger_zones WHERE allergen_type = %s ORDER BY id", (allergen_type,))
         else:
-            cursor.execute("SELECT id, name, lat, lon, radius, allergen_type, severity, created_at FROM danger_zones")
+            cursor.execute("SELECT id, name, lat, lon, radius, allergen_type, severity, created_by FROM danger_zones ORDER BY id")
         zones = cursor.fetchall()
         cursor.close()
         conn.close()
-        return [DangerZone(**z) for z in zones]
+        return zones
     
     def save(self):
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO danger_zones (name, lat, lon, radius, allergen_type, severity)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (self.name, self.lat, self.lon, self.radius, self.allergen_type, self.severity))
+            INSERT INTO danger_zones (name, lat, lon, radius, allergen_type, severity, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (self.name, self.lat, self.lon, self.radius, self.allergen_type, self.severity, self.created_by))
         conn.commit()
         self.id = cursor.lastrowid
         cursor.close()
         conn.close()
         return self.id
+    
+    @staticmethod
+    def delete(zone_id):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM danger_zones WHERE id = %s", (zone_id,))
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        return affected
 
 class RouteHistory:
     @staticmethod
@@ -231,6 +308,66 @@ class RouteHistory:
         cursor.close()
         conn.close()
         return history
+    
+    @staticmethod
+    def get_all_history(limit=100):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT rh.*, u.username 
+            FROM route_history rh 
+            JOIN users u ON rh.user_id = u.id 
+            ORDER BY rh.created_at DESC 
+            LIMIT %s
+        """, (limit,))
+        history = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return history
+    
+    @staticmethod
+    def get_count():
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM route_history")
+        count = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+        return count
+
+class SystemLog:
+    @staticmethod
+    def add(user_id, username, action):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO system_logs (user_id, username, action) VALUES (%s, %s, %s)", 
+                           (user_id, username, action))
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Лог не записан: {e}")
+    
+    @staticmethod
+    def get_all(limit=100):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT %s", (limit,))
+        logs = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return logs
+    
+    @staticmethod
+    def get_count():
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM system_logs")
+        count = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+        return count
 
 # =====================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -249,17 +386,49 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def add_log(user_id, username, action):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO system_logs (user_id, username, action) VALUES (%s, %s, %s)", 
-                       (user_id, username, action))
-        conn.commit()
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print(f"Лог не записан: {e}")
+def regular_user_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"error": "Не авторизован"}), 401
+        user = get_current_user_obj()
+        if not user or user.role != 'user':
+            return jsonify({"error": "Доступ только для обычных пользователей"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def global_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"error": "Не авторизован"}), 401
+        user = get_current_user_obj()
+        if not user or user.role != 'global_admin':
+            return jsonify({"error": "Доступ только для глобального администратора"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def allergen_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"error": "Не авторизован"}), 401
+        user = get_current_user_obj()
+        if not user or user.role not in ['global_admin', 'allergen_admin']:
+            return jsonify({"error": "Доступ только для администратора по аллергенам"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def user_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"error": "Не авторизован"}), 401
+        user = get_current_user_obj()
+        if not user or user.role not in ['global_admin', 'user_admin']:
+            return jsonify({"error": "Доступ только для администратора по пользователям"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 # =====================
 # API ДЛЯ ПОГОДЫ И РИСКА
@@ -269,9 +438,9 @@ WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
 AIR_API_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 ALLERGENS = {
-    "birch": {"label": "Берёза", "field": "birch_pollen", "desc": "основной весенний аллерген"},
-    "grass": {"label": "Злаки", "field": "grass_pollen", "desc": "сезонный травяной аллерген"},
-    "ragweed": {"label": "Амброзия", "field": "ragweed_pollen", "desc": "высокоаллергенное растение"}
+    "birch": {"label": "Берёза", "field": "birch_pollen", "desc": "основной весенний аллерген", "icon": "🌳"},
+    "grass": {"label": "Злаки", "field": "grass_pollen", "desc": "сезонный травяной аллерген", "icon": "🌾"},
+    "ragweed": {"label": "Амброзия", "field": "ragweed_pollen", "desc": "высокоаллергенное растение", "icon": "🌿"}
 }
 
 HTTP_HEADERS = {"User-Agent": "AllergyRiskMVP/1.0"}
@@ -463,7 +632,7 @@ def register():
         session.permanent = True
         session['user_id'] = user_id
         session['username'] = username
-        add_log(user_id, username, "Регистрация нового пользователя")
+        SystemLog.add(user_id, username, "Зарегистрировался в системе")
         
         return jsonify({"success": True, "user_id": user_id, "username": username, "message": "Регистрация успешна"})
     except mysql.connector.IntegrityError as e:
@@ -495,14 +664,17 @@ def login():
         if not user:
             return jsonify({"error": "Пользователь не найден"}), 401
         
+        if user['is_blocked']:
+            return jsonify({"error": "Ваш аккаунт заблокирован"}), 401
+        
         if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
             session.permanent = True
             session['user_id'] = user['id']
             session['username'] = user['username']
             
-            add_log(user['id'], user['username'], "Вход в систему")
+            SystemLog.add(user['id'], user['username'], "Выполнен вход в систему")
             
-            return jsonify({"success": True, "user_id": user['id'], "username": user['username'], "message": "Вход выполнен успешно"})
+            return jsonify({"success": True, "user_id": user['id'], "username": user['username'], "role": user['role'], "message": "Вход выполнен успешно"})
         else:
             return jsonify({"error": "Неверный пароль"}), 401
     except Exception as e:
@@ -511,7 +683,7 @@ def login():
 @app.route("/api/logout", methods=["POST"])
 def logout():
     if 'user_id' in session and 'username' in session:
-        add_log(session['user_id'], session['username'], "Выход из системы")
+        SystemLog.add(session['user_id'], session['username'], "Выполнен выход из системы")
     session.clear()
     return jsonify({"success": True, "message": "Вы вышли из системы"})
 
@@ -519,14 +691,16 @@ def logout():
 def get_current_user_api():
     if 'user_id' in session:
         user = get_current_user_obj()
-        role = user.role if user else 'user'
-        return jsonify({"authenticated": True, "user_id": session['user_id'], "username": session['username'], "role": role})
+        if user:
+            return jsonify({"authenticated": True, "user_id": session['user_id'], "username": session['username'], "role": user.role})
     return jsonify({"authenticated": False})
 
 @app.route("/api/user/allergens", methods=["GET"])
+@login_required
 def get_user_allergens():
-    if 'user_id' not in session:
-        return jsonify({"error": "Не авторизован"}), 401
+    user = get_current_user_obj()
+    if user.role != 'user':
+        return jsonify({"success": True, "allergens": []})
     
     user_id = session['user_id']
     
@@ -543,10 +717,8 @@ def get_user_allergens():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/user/allergens", methods=["POST"])
+@regular_user_required
 def add_user_allergen():
-    if 'user_id' not in session:
-        return jsonify({"error": "Не авторизован"}), 401
-    
     data = request.get_json()
     allergen_type = data.get("allergen_type")
     severity = data.get("severity", 3)
@@ -568,15 +740,15 @@ def add_user_allergen():
         cursor.close()
         conn.close()
         
+        SystemLog.add(user_id, session['username'], f"Добавил аллерген: {allergen_type}")
+        
         return jsonify({"success": True, "message": f"Аллерген добавлен"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/user/allergens/<allergen_type>", methods=["DELETE"])
+@regular_user_required
 def remove_user_allergen(allergen_type):
-    if 'user_id' not in session:
-        return jsonify({"error": "Не авторизован"}), 401
-    
     user_id = session['user_id']
     
     try:
@@ -590,6 +762,8 @@ def remove_user_allergen(allergen_type):
         cursor.close()
         conn.close()
         
+        SystemLog.add(user_id, session['username'], f"Удалил аллерген: {allergen_type}")
+        
         return jsonify({"success": True, "message": "Аллерген удалён"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -602,6 +776,11 @@ def remove_user_allergen(allergen_type):
 def index():
     return render_template("index.html")
 
+# Статические файлы
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
+
 @app.route("/api/risk", methods=["POST"])
 def api_risk():
     data = request.get_json(silent=True) or {}
@@ -610,18 +789,19 @@ def api_risk():
     
     allergen = data.get("allergen", "birch")
     if 'user_id' in session:
-        user_id = session['user_id']
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT allergen_type FROM user_allergens WHERE user_id = %s", (user_id,))
-            user_allergens = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            if user_allergens:
-                allergen = user_allergens[0][0]
-        except Exception as e:
-            print(f"Ошибка получения аллергенов: {e}")
+        user = get_current_user_obj()
+        if user and user.role == 'user':
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT allergen_type FROM user_allergens WHERE user_id = %s", (session['user_id'],))
+                user_allergens = cursor.fetchall()
+                cursor.close()
+                conn.close()
+                if user_allergens:
+                    allergen = user_allergens[0][0]
+            except Exception as e:
+                print(f"Ошибка получения аллергенов: {e}")
 
     if lat is None or lon is None:
         return jsonify({"error": "Нужно передать lat и lon"}), 400
@@ -640,11 +820,13 @@ def api_risk():
         return jsonify({"error": f"Внутренняя ошибка: {exc}"}), 500
 
 @app.route("/api/route/save", methods=["POST"])
-@login_required
+@regular_user_required
 def save_route():
     data = request.get_json()
+    user_id = session['user_id']
+    
     RouteHistory.save(
-        session['user_id'],
+        user_id,
         data.get("start_lat"),
         data.get("start_lon"),
         data.get("end_lat"),
@@ -652,92 +834,316 @@ def save_route():
         data.get("risk_score", 0),
         data.get("allergen_type", "birch")
     )
+    
+    SystemLog.add(user_id, session['username'], f"Сохранён маршрут (риск: {data.get('risk_score', 0)})")
+    
     return jsonify({"success": True, "message": "Маршрут сохранён"})
 
 @app.route("/api/route/history", methods=["GET"])
-@login_required
+@regular_user_required
 def get_route_history():
     limit = request.args.get("limit", 20, type=int)
     history = RouteHistory.get_user_history(session['user_id'], limit)
     return jsonify({"success": True, "history": history, "count": len(history)})
 
 # =====================
-# ДОПОЛНИТЕЛЬНЫЕ API
+# АДМИН-ПАНЕЛЬ (ГЛОБАЛЬНЫЙ АДМИН)
 # =====================
 
-@app.route("/api/articles", methods=["GET"])
-def get_articles():
-    category = request.args.get("category", "")
+@app.route("/admin/global")
+@global_admin_required
+def admin_global():
+    user = get_current_user_obj()
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    if category:
-        cursor.execute("SELECT id, title, content, category, created_at FROM articles WHERE category = %s ORDER BY created_at DESC", (category,))
-    else:
-        cursor.execute("SELECT id, title, content, category, created_at FROM articles ORDER BY created_at DESC")
+    cursor.execute("SELECT COUNT(*) as count FROM users")
+    total_users = cursor.fetchone()['count']
     
-    articles = cursor.fetchall()
+    cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'user'")
+    regular_users = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT COUNT(*) as count FROM route_history")
+    total_routes = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT COUNT(*) as count FROM danger_zones")
+    total_zones = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT COUNT(*) as count FROM system_logs")
+    total_logs = cursor.fetchone()['count']
+    
+    # ПОЛУЧАЕМ ВСЕХ АДМИНИСТРАТОРОВ (allergen_admin и user_admin)
+    # НЕ включаем глобального админа в этот список
+    cursor.execute("""
+        SELECT id, username, email, role 
+        FROM users 
+        WHERE role IN ('allergen_admin', 'user_admin')
+        ORDER BY id
+    """)
+    admins = cursor.fetchall()
+    
     cursor.close()
     conn.close()
     
-    return jsonify({"success": True, "articles": articles})
+    return render_template("admin/global_admin.html", 
+                          username=user.username, 
+                          role=user.role,
+                          total_users=total_users,
+                          regular_users=regular_users,
+                          total_routes=total_routes,
+                          total_zones=total_zones,
+                          total_logs=total_logs,
+                          admins=admins)
 
-@app.route("/api/favorites", methods=["GET"])
-@login_required
-def get_favorites():
-    user_id = session['user_id']
+@app.route("/admin/global/add-admin", methods=["POST"])
+@global_admin_required
+def add_admin():
+    admin_user = get_current_user_obj()
+    email = request.form.get("email")
+    role = request.form.get("role")
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, name, lat, lon, created_at FROM favorite_places WHERE user_id = %s ORDER BY created_at DESC", (user_id,))
-    favorites = cursor.fetchall()
+    
+    cursor.execute("SELECT id, username, role FROM users WHERE email = %s", (email,))
+    user = cursor.fetchone()
+    
+    if not user:
+        cursor.close()
+        conn.close()
+        return "Пользователь с таким email не найден", 404
+    
+    if user['role'] != 'user':
+        cursor.close()
+        conn.close()
+        return "Этот пользователь уже является администратором", 400
+    
+    cursor.execute("UPDATE users SET role = %s WHERE id = %s", (role, user['id']))
+    conn.commit()
     cursor.close()
     conn.close()
     
-    return jsonify({"success": True, "favorites": favorites})
-
-@app.route("/api/favorites", methods=["POST"])
-@login_required
-def add_favorite():
-    data = request.get_json()
-    name = data.get("name", "")
-    lat = data.get("lat")
-    lon = data.get("lon")
-    user_id = session['user_id']
+    SystemLog.add(admin_user.id, admin_user.username, f"Назначил {role} пользователю {user['username']} ({email})")
     
-    if lat is None or lon is None:
-        return jsonify({"error": "Не указаны координаты"}), 400
+    return redirect("/admin/global")
+
+@app.route("/admin/global/remove-admin", methods=["POST"])
+@global_admin_required
+def remove_admin():
+    admin_user = get_current_user_obj()
+    user_id = request.form.get("user_id")
     
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO favorite_places (user_id, name, lat, lon) VALUES (%s, %s, %s, %s)",
-        (user_id, name, lat, lon)
-    )
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT id, username, role FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    
+    if not user:
+        cursor.close()
+        conn.close()
+        return "Пользователь не найден", 404
+    
+    if user['role'] == 'global_admin':
+        cursor.close()
+        conn.close()
+        return "Нельзя снять права с глобального администратора", 400
+    
+    cursor.execute("UPDATE users SET role = 'user' WHERE id = %s", (user_id,))
     conn.commit()
-    favorite_id = cursor.lastrowid
     cursor.close()
     conn.close()
     
-    return jsonify({"success": True, "id": favorite_id, "message": "Место добавлено в избранное"})
+    SystemLog.add(admin_user.id, admin_user.username, f"Снял права администратора с {user['username']}")
+    
+    return redirect("/admin/global")
 
-@app.route("/api/favorites/<int:favorite_id>", methods=["DELETE"])
-@login_required
-def delete_favorite(favorite_id):
-    user_id = session['user_id']
+@app.route("/admin/logs")
+@global_admin_required
+def admin_logs():
+    user = get_current_user_obj()
+    logs = SystemLog.get_all(200)
+    return render_template("admin/logs.html", username=user.username, role=user.role, logs=logs)
+
+@app.route("/admin/users-list")
+@global_admin_required
+def admin_users_list():
+    user = get_current_user_obj()
+    users = User.get_all_users()
+    return render_template("admin/users_list.html", username=user.username, role=user.role, users=users)
+
+# =====================
+# АДМИН-ПАНЕЛЬ (АЛЛЕРГЕН-АДМИН)
+# =====================
+
+@app.route("/admin/allergen")
+@allergen_admin_required
+def admin_allergen():
+    user = get_current_user_obj()
+    zones = DangerZone.get_all()  # Получаем ВСЕ зоны из БД
+    return render_template("admin/allergen_admin.html", username=user.username, role=user.role, zones=zones)
+
+@app.route("/admin/allergen/add-zone", methods=["POST"])
+@allergen_admin_required
+def add_zone():
+    user = get_current_user_obj()
+    
+    try:
+        zone = DangerZone(
+            id=None,
+            name=request.form.get("name"),
+            lat=float(request.form.get("lat")),
+            lon=float(request.form.get("lon")),
+            radius=int(request.form.get("radius", 1500)),
+            allergen_type=request.form.get("allergen_type"),
+            severity=1,
+            created_by=user.id
+        )
+        zone.save()
+        SystemLog.add(user.id, user.username, f"Добавил опасную зону: {zone.name}")
+    except Exception as e:
+        print(f"Ошибка при добавлении зоны: {e}")
+    
+    return redirect("/admin/allergen")
+
+@app.route("/admin/allergen/delete-zone", methods=["POST"])
+@allergen_admin_required
+def delete_zone():
+    user = get_current_user_obj()
+    zone_id = request.form.get("zone_id")
+    
+    if zone_id:
+        # Получаем имя зоны для лога
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT name FROM danger_zones WHERE id = %s", (zone_id,))
+        zone = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if zone:
+            DangerZone.delete(zone_id)
+            SystemLog.add(user.id, user.username, f"Удалил опасную зону: {zone['name']}")
+    
+    return redirect("/admin/allergen")
+
+@app.route("/admin/allergen/stats")
+@allergen_admin_required
+def allergen_stats():
+    user = get_current_user_obj()
     
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM favorite_places WHERE id = %s AND user_id = %s", (favorite_id, user_id))
-    conn.commit()
-    affected = cursor.rowcount
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT 
+            allergen_type,
+            COUNT(*) as count
+        FROM danger_zones
+        GROUP BY allergen_type
+    """)
+    stats = cursor.fetchall()
     cursor.close()
     conn.close()
     
-    if affected:
-        return jsonify({"success": True, "message": "Место удалено из избранного"})
-    return jsonify({"error": "Место не найдено"}), 404
+    allergen_names = {"birch": "🌳 Берёза", "grass": "🌾 Злаки", "ragweed": "🌿 Амброзия"}
+    for s in stats:
+        s['allergen_label'] = allergen_names.get(s['allergen_type'], s['allergen_type'])
+    
+    return render_template("admin/allergen_stats.html", username=user.username, role=user.role, stats=stats)
+
+# =====================
+# АДМИН-ПАНЕЛЬ (ПОЛЬЗОВАТЕЛЬ-АДМИН)
+# =====================
+
+@app.route("/admin/user")
+@user_admin_required
+def admin_user():
+    user = get_current_user_obj()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, username, email, role, is_blocked, created_at FROM users WHERE role = 'user'")
+    users = cursor.fetchall()
+    
+    routes = RouteHistory.get_all_history(50)
+    
+    cursor.close()
+    conn.close()
+    
+    return render_template("admin/user_admin.html", username=user.username, role=user.role, users=users, routes=routes)
+
+@app.route("/admin/user/block", methods=["POST"])
+@user_admin_required
+def block_user():
+    admin_user = get_current_user_obj()
+    user_id = request.form.get("user_id")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT username FROM users WHERE id = %s AND role = 'user'", (user_id,))
+    target_user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if target_user:
+        User.toggle_block(user_id, 1)
+        SystemLog.add(admin_user.id, admin_user.username, f"Заблокировал пользователя: {target_user['username']}")
+    
+    return redirect("/admin/user")
+
+@app.route("/admin/user/unblock", methods=["POST"])
+@user_admin_required
+def unblock_user():
+    admin_user = get_current_user_obj()
+    user_id = request.form.get("user_id")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+    target_user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if target_user:
+        User.toggle_block(user_id, 0)
+        SystemLog.add(admin_user.id, admin_user.username, f"Разблокировал пользователя: {target_user['username']}")
+    
+    return redirect("/admin/user")
+
+@app.route("/admin/user-stats")
+@user_admin_required
+def admin_user_stats():
+    user = get_current_user_obj()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT u.id, u.username, u.email, u.role, COUNT(rh.id) as routes_count,
+               GROUP_CONCAT(DISTINCT rh.allergen_type) as allergens_used
+        FROM users u
+        LEFT JOIN route_history rh ON u.id = rh.user_id
+        WHERE u.role = 'user'
+        GROUP BY u.id
+        ORDER BY u.id
+    """)
+    stats = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    allergen_names = {"birch": "Берёза", "grass": "Злаки", "ragweed": "Амброзия"}
+    for s in stats:
+        if s['allergens_used']:
+            allergens_list = s['allergens_used'].split(',')
+            s['allergens_used_ru'] = ', '.join([allergen_names.get(a, a) for a in allergens_list])
+        else:
+            s['allergens_used_ru'] = '—'
+    
+    return render_template("admin/user_stats.html", username=user.username, role=user.role, stats=stats)
+
+# =====================
+# ДОПОЛНИТЕЛЬНЫЕ API
+# =====================
 
 @app.route("/api/statistics", methods=["GET"])
 def get_statistics():
@@ -777,282 +1183,6 @@ def get_statistics():
             "top_allergen": allergen_names.get(top_allergen, top_allergen)
         }
     })
-
-# =====================
-# АДМИН-ПАНЕЛЬ
-# =====================
-
-@app.route("/admin/global")
-def admin_global():
-    user = get_current_user_obj()
-    if not user or user.role != 'global_admin':
-        return "Доступ запрещён", 403
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute("SELECT COUNT(*) as count FROM users")
-    total_users = cursor.fetchone()['count']
-    
-    cursor.execute("SELECT COUNT(*) as count FROM users WHERE role != 'guest'")
-    auth_users = cursor.fetchone()['count']
-    
-    cursor.execute("SELECT COUNT(*) as count FROM route_history")
-    total_routes = cursor.fetchone()['count']
-    
-    cursor.execute("SELECT COUNT(*) as count FROM danger_zones")
-    total_zones = cursor.fetchone()['count']
-    
-    cursor.execute("SELECT id, username, email, role FROM users WHERE role IN ('allergen_admin', 'user_admin')")
-    admins = cursor.fetchall()
-    
-    cursor.close()
-    conn.close()
-    
-    return render_template("admin/global_admin.html", 
-                          username=user.username, 
-                          role=user.role,
-                          total_users=total_users,
-                          auth_users=auth_users,
-                          total_routes=total_routes,
-                          total_zones=total_zones,
-                          admins=admins)
-
-@app.route("/admin/allergen")
-def admin_allergen():
-    user = get_current_user_obj()
-    if not user or user.role not in ['global_admin', 'allergen_admin']:
-        return "Доступ запрещён", 403
-    
-    zones = DangerZone.get_all()
-    
-    return render_template("admin/allergen_admin.html",
-                          username=user.username,
-                          role=user.role,
-                          zones=zones)
-
-@app.route("/admin/allergen/add-zone", methods=["POST"])
-def add_zone():
-    user = get_current_user_obj()
-    if not user or user.role not in ['global_admin', 'allergen_admin']:
-        return "Доступ запрещён", 403
-    
-    zone = DangerZone(
-        id=None,
-        name=request.form.get("name"),
-        lat=float(request.form.get("lat")),
-        lon=float(request.form.get("lon")),
-        radius=int(request.form.get("radius")),
-        allergen_type=request.form.get("allergen_type"),
-        severity=1
-    )
-    zone.save()
-    add_log(user.id, user.username, f"Добавлена зона: {zone.name}")
-    return redirect("/admin/allergen")
-@app.route("/admin/allergen/stats")
-def allergen_stats():
-    user = get_current_user_obj()
-    if not user or user.role not in ['global_admin', 'allergen_admin']:
-        return "Доступ запрещён", 403
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT 
-            allergen_type,
-            COUNT(*) as count
-        FROM danger_zones
-        GROUP BY allergen_type
-    """)
-    stats = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    # Перевод названий аллергенов
-    allergen_names = {
-        "birch": "Берёза",
-        "grass": "Злаки",
-        "ragweed": "Амброзия"
-    }
-    
-    for s in stats:
-        s['allergen_label'] = allergen_names.get(s['allergen_type'], s['allergen_type'])
-    
-    return render_template("admin/allergen_stats.html", 
-                          username=user.username, 
-                          role=user.role, 
-                          stats=stats)
-
-@app.route("/admin/allergen/delete-zone", methods=["POST"])
-def delete_zone():
-    user = get_current_user_obj()
-    if not user or user.role not in ['global_admin', 'allergen_admin']:
-        return "Доступ запрещён", 403
-    
-    zone_id = request.form.get("zone_id")
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM danger_zones WHERE id = %s", (zone_id,))
-    zone_result = cursor.fetchone()
-    zone_name = zone_result[0] if zone_result else f"ID={zone_id}"
-    
-    cursor.execute("DELETE FROM danger_zones WHERE id = %s", (zone_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    add_log(user.id, user.username, f"Удалена зона: {zone_name}")
-    return redirect("/admin/allergen")
-
-@app.route("/admin/users-list")
-def admin_users_list():
-    user = get_current_user_obj()
-    if not user or user.role != 'global_admin':
-        return "Доступ запрещён", 403
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, username, email, role, created_at FROM users ORDER BY id")
-    all_users = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    return render_template("admin/users_list.html", 
-                          username=user.username, 
-                          role=user.role, 
-                          users=all_users)
-
-@app.route("/admin/user")
-def admin_user():
-    user = get_current_user_obj()
-    if not user or user.role not in ['global_admin', 'user_admin']:
-        return "Доступ запрещён", 403
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, username, email, role, is_blocked FROM users")
-    users = cursor.fetchall()
-    
-    cursor.execute("""
-        SELECT rh.*, u.username 
-        FROM route_history rh 
-        JOIN users u ON rh.user_id = u.id 
-        ORDER BY rh.created_at DESC 
-        LIMIT 50
-    """)
-    routes = cursor.fetchall()
-    
-    cursor.close()
-    conn.close()
-    
-    return render_template("admin/user_admin.html",
-                          username=user.username,
-                          role=user.role,
-                          users=users,
-                          routes=routes)
-
-@app.route("/admin/global/add-admin", methods=["POST"])
-def add_admin():
-    user = get_current_user_obj()
-    if not user or user.role != 'global_admin':
-        return "Доступ запрещён", 403
-    
-    email = request.form.get("email")
-    role = request.form.get("role")
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE users SET role = %s WHERE email = %s", (role, email))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    add_log(user.id, user.username, f"Назначен администратор {email} с ролью {role}")
-    return redirect("/admin/global")
-
-@app.route("/admin/user/block", methods=["POST"])
-def block_user():
-    user = get_current_user_obj()
-    if not user or (user.role not in ['global_admin', 'user_admin']):
-        return "Доступ запрещён", 403
-    
-    user_id = request.form.get("user_id")
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
-    target_user = cursor.fetchone()
-    target_username = target_user[0] if target_user else str(user_id)
-    
-    cursor.execute("UPDATE users SET is_blocked = 1 WHERE id = %s", (user_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    add_log(user.id, user.username, f"Заблокирован пользователь: {target_username}")
-    return redirect("/admin/user")
-
-@app.route("/admin/user/unblock", methods=["POST"])
-def unblock_user():
-    user = get_current_user_obj()
-    if not user or (user.role not in ['global_admin', 'user_admin']):
-        return "Доступ запрещён", 403
-    
-    user_id = request.form.get("user_id")
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
-    target_user = cursor.fetchone()
-    target_username = target_user[0] if target_user else str(user_id)
-    
-    cursor.execute("UPDATE users SET is_blocked = 0 WHERE id = %s", (user_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    add_log(user.id, user.username, f"Разблокирован пользователь: {target_username}")
-    return redirect("/admin/user")
-
-@app.route("/admin/user-stats")
-def admin_user_stats():
-    user = get_current_user_obj()
-    if not user or user.role not in ['global_admin', 'user_admin']:
-        return "Доступ запрещён", 403
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT u.id, u.username, u.email, u.role, COUNT(rh.id) as routes_count
-        FROM users u
-        LEFT JOIN route_history rh ON u.id = rh.user_id
-        GROUP BY u.id
-        ORDER BY routes_count DESC
-    """)
-    stats = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    return render_template("admin/user_stats.html", 
-                          username=user.username, 
-                          role=user.role, 
-                          stats=stats)
-
-@app.route("/admin/logs")
-def admin_logs():
-    user = get_current_user_obj()
-    if not user or user.role != 'global_admin':
-        return "Доступ запрещён", 403
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM system_logs ORDER BY created_at DESC LIMIT 100")
-    logs = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    return render_template("admin/logs.html", username=user.username, role=user.role, logs=logs)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001)

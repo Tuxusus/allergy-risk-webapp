@@ -1,45 +1,58 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
 <div class="admin-card">
-    <h2>➕ Добавить новую опасную зону</h2>
-    <form method="POST" action="/admin/allergen/add-zone">
-        <input type="text" name="name" placeholder="Название зоны" required>
-        <input type="text" name="lat" placeholder="Широта (например: 55.7800)" required>
-        <input type="text" name="lon" placeholder="Долгота (например: 37.6000)" required>
-        <input type="number" name="radius" placeholder="Радиус (м)" value="1500">
-        <select name="allergen_type">
-            <option value="birch">🌳 Берёза</option>
-            <option value="grass">🌾 Злаки</option>
-            <option value="ragweed">🍂 Амброзия</option>
-        </select>
-        <button type="submit" class="save-btn">➕ Добавить зону</button>
+    <h2>Добавить новую опасную зону</h2>
+    <form method="POST" action="/admin/allergen/add-zone" class="admin-form">
+        <div class="form-group">
+            <input type="text" name="name" placeholder="Название зоны" required>
+            <input type="text" name="lat" placeholder="Широта" required>
+            <input type="text" name="lon" placeholder="Долгота" required>
+            <input type="number" name="radius" placeholder="Радиус (м)" value="1500">
+            <select name="allergen_type">
+                <option value="birch">Берёза</option>
+                <option value="grass">Злаки</option>
+                <option value="ragweed">Амброзия</option>
+            </select>
+        </div>
+        <button type="submit" class="btn-primary">Добавить зону</button>
     </form>
 </div>
 
 <div class="admin-card">
-    <h2>⚠️ Существующие опасные зоны</h2>
-    {% if zones %}
-    <table style="width: 100%; border-collapse: collapse;">
+    <h2>Существующие опасные зоны</h2>
+    {% if zones and zones|length > 0 %}
+    <table class="admin-table">
         <thead>
-            <tr style="background: var(--panel-soft);">
-                <th style="padding: 12px; text-align: left;">Название</th>
-                <th style="padding: 12px; text-align: left;">Аллерген</th>
-                <th style="padding: 12px; text-align: left;">Радиус (м)</th>
-                <th style="padding: 12px; text-align: left;">Действие</th>
+            <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Координаты</th>
+                <th>Радиус</th>
+                <th>Аллерген</th>
+                <th>Действие</th>
             </tr>
         </thead>
         <tbody>
             {% for zone in zones %}
-            <tr style="border-bottom: 1px solid var(--border);">
-                <td style="padding: 10px;">{{ zone.name }}</td>
-                <td style="padding: 10px;">
-                    {% if zone.allergen_type == 'birch' %}🌳 Берёза
-                    {% elif zone.allergen_type == 'grass' %}🌾 Злаки
-                    {% else %}🍂 Амброзия{% endif %}
+            <tr>
+                <td>{{ zone.id }}</td>
+                <td class="zone-name">{{ zone.name }}</td>
+                <td class="coords">{{ zone.lat }}, {{ zone.lon }}</td>
+                <td>{{ zone.radius }} м</td>
+                <td>
+                    {% if zone.allergen_type == 'birch' %}
+                        Берёза
+                    {% elif zone.allergen_type == 'grass' %}
+                        Злаки
+                    {% else %}
+                        Амброзия
+                    {% endif %}
                 </td>
-                <td style="padding: 10px;">{{ zone.radius }} м</td>
-                <td style="padding: 10px;">
-                    <form method="POST" action="/admin/allergen/delete-zone" style="display:inline" onsubmit="return confirm('Удалить зону «{{ zone.name }}»?');">
+                <td>
+                    <form method="POST" action="/admin/allergen/delete-zone" onsubmit="return confirm('Удалить зону ' + '{{ zone.name }}' + '?');" style="margin:0;">
                         <input type="hidden" name="zone_id" value="{{ zone.id }}">
-                        <button type="submit" class="danger-btn" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">🗑️ Удалить</button>
+                        <button type="submit" class="btn-delete">Удалить</button>
                     </form>
                 </td>
             </tr>
@@ -47,6 +60,7 @@
         </tbody>
     </table>
     {% else %}
-    <p style="color: var(--text-muted);">📭 Нет добавленных опасных зон</p>
+    <p class="empty-message">Нет добавленных опасных зон</p>
     {% endif %}
 </div>
+{% endblock %}

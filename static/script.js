@@ -19,7 +19,7 @@ let isSelectingPointA = true;
 let currentUser = null;
 
 // =====================
-// API
+// API ВЫЗОВЫ
 // =====================
 
 async function fetchRisk(lat, lon) {
@@ -163,7 +163,7 @@ async function buildRoute() {
     }
     
     document.getElementById("route-status").textContent = "Поиск безопасного маршрута...";
-    document.getElementById("route-details").innerHTML = "🔍 Анализируем опасные зоны для " + getAllergenName() + "...";
+    document.getElementById("route-details").innerHTML = "Анализируем опасные зоны для " + getAllergenName() + "...";
     
     try {
         const safeWaypoint = await findSafeWaypoint(pointA, pointB);
@@ -176,13 +176,13 @@ async function buildRoute() {
         
         if (needDetour && safeWaypoint && safeWaypoint.riskData.score < 50) {
             routePoints = [pointA, safeWaypoint.coords, pointB];
-            detourInfo = `🔄 Маршрут изменён для ${getAllergenName()}! Объезд через ${safeWaypoint.name}. Риск: ${safeWaypoint.riskData.risk || "Низкий"} (${safeWaypoint.riskData.score} баллов)`;
+            detourInfo = "Маршрут изменён для " + getAllergenName() + "! Объезд через " + safeWaypoint.name + ". Риск: " + (safeWaypoint.riskData.risk || "Низкий") + " (" + safeWaypoint.riskData.score + " баллов)";
         } else {
             routePoints = [pointA, pointB];
             if (startDanger || endDanger) {
-                detourInfo = `⚠️ Внимание! Точки находятся в опасной зоне для ${getAllergenName()}. Рекомендуется выбрать другие точки.`;
+                detourInfo = "Внимание! Точки находятся в опасной зоне для " + getAllergenName() + ". Рекомендуется выбрать другие точки.";
             } else {
-                detourInfo = `✅ Прямой маршрут безопасен для ${getAllergenName()}. Опасные зоны не пересекаются.`;
+                detourInfo = "Прямой маршрут безопасен для " + getAllergenName() + ". Опасные зоны не пересекаются.";
             }
         }
         
@@ -221,56 +221,56 @@ async function buildRoute() {
             else if (maxRisk >= 50) riskLevel = "Высокий";
             else if (maxRisk >= 25) riskLevel = "Средний";
             
-            document.getElementById("route-risk").innerHTML = `🛡️ ${riskLevel}`;
+            document.getElementById("route-risk").innerHTML = riskLevel;
             document.getElementById("route-details").innerHTML = `
-                🚶 Маршрут для ${getAllergenName()} построен<br><br>
-                📏 Длина: ${distance}<br>
-                ⏱️ Время: ${duration}<br><br>
-                ${detourInfo}<br><br>
-                🛡️ Макс. риск: ${maxRisk} баллов (${riskLevel})
+                Маршрут для ` + getAllergenName() + ` построен\n\n
+                Длина: ` + distance + `\n
+                Время: ` + duration + `\n\n
+                ` + detourInfo + `\n\n
+                Макс. риск: ` + maxRisk + ` баллов (` + riskLevel + `)
             `;
             
-            let comparisonHtml = `<strong>📊 Анализ для ${getAllergenName()}:</strong><br><br>`;
+            let comparisonHtml = `Анализ для ` + getAllergenName() + `:\n\n`;
             const dangerZones = getDangerZones();
             if (dangerZones.length > 0) {
-                comparisonHtml += `⚠️ Избегаемые зоны:<br>`;
+                comparisonHtml += `Избегаемые зоны:\n`;
                 for (const zone of dangerZones.slice(0, 3)) {
-                    comparisonHtml += `• ${zone.name}<br>`;
+                    comparisonHtml += `- ` + zone.name + `\n`;
                 }
-                comparisonHtml += `<br>`;
+                comparisonHtml += `\n`;
             }
-            comparisonHtml += needDetour ? `🔄 Маршрут оптимизирован для объезда опасных зон.` : `✅ Прямой маршрут безопасен.`;
+            comparisonHtml += needDetour ? `Маршрут оптимизирован для объезда опасных зон.` : `Прямой маршрут безопасен.`;
             document.getElementById("comparison").innerHTML = comparisonHtml;
             document.getElementById("route-status").textContent = "Маршрут готов";
             
-            try {
-                const saveResponse = await fetch("/api/route/save", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        start_lat: pointA[0],
-                        start_lon: pointA[1],
-                        end_lat: pointB[0],
-                        end_lon: pointB[1],
-                        risk_score: maxRisk,
-                        allergen_type: currentAllergen
-                    })
-                });
-                await saveResponse.json();
-                console.log("Маршрут сохранён в историю");
-            } catch(e) {
-                console.log("Не удалось сохранить маршрут");
+            if (currentUser && currentUser.role === 'user') {
+                try {
+                    await fetch("/api/route/save", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            start_lat: pointA[0],
+                            start_lon: pointA[1],
+                            end_lat: pointB[0],
+                            end_lon: pointB[1],
+                            risk_score: maxRisk,
+                            allergen_type: currentAllergen
+                        })
+                    });
+                } catch(e) {
+                    console.log("Не удалось сохранить маршрут");
+                }
             }
         });
         
         currentRoute.model.events.add("requestfail", function() {
-            document.getElementById("route-details").innerHTML = "❌ Не удалось построить маршрут. Попробуйте другие точки.";
+            document.getElementById("route-details").innerHTML = "Не удалось построить маршрут. Попробуйте другие точки.";
             document.getElementById("route-status").textContent = "Ошибка";
         });
         
     } catch (error) {
         console.error("Ошибка построения маршрута:", error);
-        document.getElementById("route-details").innerHTML = "❌ Ошибка построения маршрута";
+        document.getElementById("route-details").innerHTML = "Ошибка построения маршрута";
         document.getElementById("route-status").textContent = "Ошибка";
     }
 }
@@ -287,21 +287,21 @@ function updateMapInfo(data, coords) {
     document.getElementById("main-risk-box").style.color = riskColor;
     
     document.getElementById("main-info").innerHTML = `
-        📍 Координаты:<br>${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}<br><br>
-        🌾 Аллерген: ${getAllergenName()}<br><br>
-        🌾 Концентрация: ${data.allergen_value || 0} ед.<br><br>
-        ⚠️ Индекс риска: ${data.score || 0} баллов
+        Координаты:\n` + coords[0].toFixed(4) + `, ` + coords[1].toFixed(4) + `\n\n
+        Аллерген: ` + getAllergenName() + `\n\n
+        Концентрация: ` + (data.allergen_value || 0) + ` ед.\n\n
+        Индекс риска: ` + (data.score || 0) + ` баллов
     `;
     
     document.getElementById("weather-info").innerHTML = `
-        🌡️ Температура: ${data.temperature || "—"}°C<br><br>
-        💧 Влажность: ${data.humidity || "—"}%<br><br>
-        💨 Ветер: ${data.wind_speed || "—"} м/с
+        Температура: ` + (data.temperature || "—") + `°C\n\n
+        Влажность: ` + (data.humidity || "—") + `%\n\n
+        Ветер: ` + (data.wind_speed || "—") + ` м/с
     `;
     
     document.getElementById("air-info").innerHTML = `
-        🌫️ AQI: ${data.aqi || "—"}<br><br>
-        🧪 PM2.5: ${data.pm25 || "—"} мкг/м³
+        AQI: ` + (data.aqi || "—") + `\n\n
+        PM2.5: ` + (data.pm25 || "—") + ` мкг/м³
     `;
     
     let forecastText = "Данные загружаются...";
@@ -316,7 +316,7 @@ function updateMapInfo(data, coords) {
 async function renderPollenMap() {
     clearPollen();
     document.getElementById("page-title").textContent = "Карта пыльцы";
-    document.getElementById("page-subtitle").textContent = `Аллерген: ${getAllergenName()}`;
+    document.getElementById("page-subtitle").textContent = "Аллерген: " + getAllergenName();
     
     let points = [];
     if (currentAllergen === "birch") {
@@ -351,7 +351,7 @@ async function renderPollenMap() {
         const circle = new ymaps.Circle(
             [point, 2000],
             {
-                hintContent: `${getAllergenName()}<br>Риск: ${risk.risk || "Низкий"} (${score} баллов)<br>Пыльца: ${risk.allergen_value || 0} ед.`
+                hintContent: getAllergenName() + "\nРиск: " + (risk.risk || "Низкий") + " (" + score + " баллов)\nПыльца: " + (risk.allergen_value || 0) + " ед."
             },
             {
                 fillColor: color + "66",
@@ -374,7 +374,7 @@ function clearPollen() {
 function createMarker(coords, type) {
     return new ymaps.Placemark(
         coords,
-        { hintContent: `Точка ${type}` },
+        { hintContent: "Точка " + type },
         {
             preset: "islands#circleDotIcon",
             iconColor: type === "A" ? "#53B97C" : "#D65A63"
@@ -400,7 +400,7 @@ async function selectPoint(coords) {
         
         const riskA = await fetchRisk(coords[0], coords[1]);
         document.getElementById("point-a-risk").innerHTML = riskA.risk || "Низкий";
-        document.getElementById("point-a-coords").innerHTML = `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
+        document.getElementById("point-a-coords").innerHTML = coords[0].toFixed(4) + ", " + coords[1].toFixed(4);
         document.getElementById("point-b-risk").innerHTML = "—";
         document.getElementById("point-b-coords").innerHTML = "—";
         document.getElementById("route-risk").innerHTML = "—";
@@ -415,7 +415,7 @@ async function selectPoint(coords) {
         
         const riskB = await fetchRisk(coords[0], coords[1]);
         document.getElementById("point-b-risk").innerHTML = riskB.risk || "Низкий";
-        document.getElementById("point-b-coords").innerHTML = `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
+        document.getElementById("point-b-coords").innerHTML = coords[0].toFixed(4) + ", " + coords[1].toFixed(4);
         await buildRoute();
         isSelectingPointA = true;
     }
@@ -449,7 +449,7 @@ async function changeAllergen(type) {
     document.querySelector(`[data-allergen="${type}"]`).classList.add("active");
     
     if (panelMode === "map") {
-        document.getElementById("page-subtitle").textContent = `Аллерген: ${getAllergenName()}`;
+        document.getElementById("page-subtitle").textContent = "Аллерген: " + getAllergenName();
         await renderPollenMap();
     } else if (panelMode === "route") {
         if (pointA && pointB) await buildRoute();
@@ -475,7 +475,7 @@ function switchMode(mode) {
         clearPollen();
         renderPollenMap();
         document.getElementById("page-title").textContent = "Карта пыльцы";
-        document.getElementById("page-subtitle").textContent = `Аллерген: ${getAllergenName()}`;
+        document.getElementById("page-subtitle").textContent = "Аллерген: " + getAllergenName();
     } else {
         document.getElementById("mode-route").classList.add("active");
         document.getElementById("map-panel").style.display = "none";
@@ -497,7 +497,7 @@ async function loadUserAllergensFromDB() {
             document.getElementById("user-allergen-ragweed").checked = false;
             
             for (const allergen of data.allergens) {
-                const checkbox = document.getElementById(`user-allergen-${allergen}`);
+                const checkbox = document.getElementById("user-allergen-" + allergen);
                 if (checkbox) checkbox.checked = true;
             }
             
@@ -514,8 +514,8 @@ async function loadUserAllergensFromDB() {
 }
 
 async function saveUserAllergens() {
-    if (!currentUser) {
-        alert("Пожалуйста, войдите в систему");
+    if (!currentUser || currentUser.role !== 'user') {
+        alert("Пожалуйста, войдите в систему как обычный пользователь");
         return;
     }
     
@@ -532,7 +532,7 @@ async function saveUserAllergens() {
     try {
         const allergensList = ["birch", "grass", "ragweed"];
         for (const allergen of allergensList) {
-            await fetch(`/api/user/allergens/${allergen}`, { 
+            await fetch("/api/user/allergens/" + allergen, { 
                 method: "DELETE",
                 credentials: "include"
             });
@@ -559,6 +559,11 @@ async function saveUserAllergens() {
 }
 
 async function showRouteHistory() {
+    if (!currentUser || currentUser.role !== 'user') {
+        alert("Только зарегистрированные пользователи могут просматривать историю маршрутов");
+        return;
+    }
+    
     try {
         const response = await fetch("/api/route/history", {
             method: "GET",
@@ -579,7 +584,7 @@ async function showRouteHistory() {
         };
         
         if (data.success && data.history && data.history.length > 0) {
-            let historyHtml = "<strong>📜 Ваши последние маршруты:</strong><br><br>";
+            let historyHtml = '<div class="history-list">';
             for (let route of data.history.slice(0, 10)) {
                 const startLat = parseFloat(route.start_lat);
                 const startLon = parseFloat(route.start_lon);
@@ -588,18 +593,39 @@ async function showRouteHistory() {
                 const riskScore = parseInt(route.risk_score) || 0;
                 const allergenName = allergenNames[route.allergen_type] || route.allergen_type || "—";
                 
-                historyHtml += `📍 ${isNaN(startLat) ? "—" : startLat.toFixed(4)}, ${isNaN(startLon) ? "—" : startLon.toFixed(4)} → ${isNaN(endLat) ? "—" : endLat.toFixed(4)}, ${isNaN(endLon) ? "—" : endLon.toFixed(4)}<br>`;
-                historyHtml += `🛡️ Риск: ${riskScore} баллов<br>`;
-                historyHtml += `🌾 Аллерген: ${allergenName}<br>`;
-                historyHtml += `📅 ${new Date(route.created_at).toLocaleString()}<br><br>`;
+                let riskClass = "risk-low";
+                if (riskScore >= 50) riskClass = "risk-high";
+                else if (riskScore >= 25) riskClass = "risk-medium";
+                
+                historyHtml += `
+                    <div class="history-item">
+                        <div class="history-header">
+                            <span class="history-date">${new Date(route.created_at).toLocaleString()}</span>
+                            <span class="history-risk ${riskClass}">Риск: ${riskScore} баллов</span>
+                        </div>
+                        <div class="history-route">
+                            <div class="history-point">
+                                <span class="history-point-label">Откуда:</span>
+                                <span class="history-point-coords">${isNaN(startLat) ? "—" : startLat.toFixed(4)}°, ${isNaN(startLon) ? "—" : startLon.toFixed(4)}°</span>
+                            </div>
+                            <div class="history-arrow">→</div>
+                            <div class="history-point">
+                                <span class="history-point-label">Куда:</span>
+                                <span class="history-point-coords">${isNaN(endLat) ? "—" : endLat.toFixed(4)}°, ${isNaN(endLon) ? "—" : endLon.toFixed(4)}°</span>
+                            </div>
+                        </div>
+                        <div class="history-allergen">Аллерген: ${allergenName}</div>
+                    </div>
+                `;
             }
+            historyHtml += '</div>';
             document.getElementById("route-details").innerHTML = historyHtml;
         } else {
-            document.getElementById("route-details").innerHTML = "📭 У вас пока нет сохранённых маршрутов";
+            document.getElementById("route-details").innerHTML = '<div class="empty-history">У вас пока нет сохранённых маршрутов</div>';
         }
     } catch(e) {
         console.error("Ошибка:", e);
-        document.getElementById("route-details").innerHTML = "❌ Ошибка загрузки истории: " + e.message;
+        document.getElementById("route-details").innerHTML = '<div class="error-message">Ошибка загрузки истории: ' + e.message + '</div>';
     }
 }
 
@@ -634,24 +660,83 @@ async function loadAdminModal(url, title) {
         
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        let content = doc.querySelector('.admin-card');
-        if (!content) content = doc.querySelector('.container');
-        if (!content) content = doc.body;
         
-        let contentHtml = content.innerHTML;
-        contentHtml = contentHtml.replace(/<button[^>]*close-btn[^>]*>.*?<\/button>/gi, '');
-        contentHtml = contentHtml.replace(/<button[^>]*Закрыть[^>]*>.*?<\/button>/gi, '');
+        const allCards = doc.querySelectorAll('.admin-card');
+        let allContent = '';
+        
+        if (allCards.length > 0) {
+            allCards.forEach(card => {
+                allContent += card.outerHTML;
+            });
+        } else {
+            let content = doc.querySelector('.container');
+            if (!content) content = doc.body;
+            allContent = content.innerHTML;
+        }
+        
+        allContent = allContent.replace(/<button[^>]*close-btn[^>]*>.*?<\/button>/gi, '');
+        allContent = allContent.replace(/<button[^>]*Закрыть[^>]*>.*?<\/button>/gi, '');
         
         document.getElementById("admin-modal-content").innerHTML = `
-            <h3 style="margin-bottom: 20px; color: var(--accent-emerald);">${title}</h3>
+            <h3 style="margin-bottom: 20px; color: #2ecc71;">` + title + `</h3>
             <div style="max-height: 500px; overflow-y: auto;">
-                ${contentHtml}
+                ` + allContent + `
             </div>
         `;
         
+        const forms = document.querySelectorAll("#admin-modal-content form");
+        forms.forEach(form => {
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                const action = form.action;
+                
+                try {
+                    const response = await fetch(action, {
+                        method: "POST",
+                        body: formData,
+                        credentials: "include"
+                    });
+                    
+                    if (response.redirected) {
+                        closeAdminModal();
+                        showToast("Операция выполнена успешно");
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        const result = await response.json();
+                        showToast(result.message || "Операция выполнена");
+                        closeAdminModal();
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                } catch (error) {
+                    showToast("Ошибка при выполнении операции", "error");
+                }
+            });
+        });
+        
     } catch(e) {
-        document.getElementById("admin-modal-content").innerHTML = `<div style="color: red;">❌ Ошибка загрузки: ${e.message}</div>`;
+        document.getElementById("admin-modal-content").innerHTML = `<div style="color: red;">Ошибка загрузки: ` + e.message + `</div>`;
     }
+}
+
+function showToast(message, type = "success") {
+    const toast = document.createElement("div");
+    toast.className = "toast-message toast-" + type;
+    toast.innerHTML = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: ` + (type === "success" ? "#2ecc71" : "#e74c3c") + `;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 12px;
+        z-index: 10000;
+        animation: fadeInOut 3s ease;
+        font-weight: 500;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 adminModal.addEventListener("click", (e) => {
@@ -667,43 +752,66 @@ async function checkAuth() {
     try {
         const response = await fetch("/api/user/me");
         const data = await response.json();
+        
         if (data.authenticated) {
             currentUser = data;
-            document.getElementById("user-info").style.display = "none";
-            document.getElementById("user-details").style.display = "block";
-            document.getElementById("user-allergens-card").style.display = "block";
-            document.getElementById("username-display").innerHTML = `👋 ${data.username}`;
-            document.getElementById("user-badge").innerHTML = data.username;
+            const isGlobalAdmin = data.role === 'global_admin';
+            const isAllergenAdmin = data.role === 'allergen_admin';
+            const isUserAdmin = data.role === 'user_admin';
+            const isRegularUser = data.role === 'user';
             
-            document.getElementById("admin-panel").style.display = "none";
-            document.getElementById("allergen-admin-panel").style.display = "none";
+            document.getElementById("user-guest-panel").style.display = "none";
+            document.getElementById("user-authed-panel").style.display = "none";
             document.getElementById("user-admin-panel").style.display = "none";
+            document.getElementById("global-admin-panel").style.display = "none";
+            document.getElementById("allergen-admin-panel").style.display = "none";
+            document.getElementById("user-management-panel").style.display = "none";
             
-            if (data.role === 'global_admin') {
-                document.getElementById("admin-panel").style.display = "block";
-                document.getElementById("allergen-admin-panel").style.display = "block";
-                document.getElementById("user-admin-panel").style.display = "block";
-            }
-            if (data.role === 'allergen_admin') {
-                document.getElementById("allergen-admin-panel").style.display = "block";
-            }
-            if (data.role === 'user_admin') {
-                document.getElementById("user-admin-panel").style.display = "block";
-            }
+            document.getElementById("allergen-select-card").style.display = "block";
             
-            await loadUserAllergensFromDB();
+            if (isGlobalAdmin) {
+                document.getElementById("user-admin-panel").style.display = "block";
+                document.getElementById("global-admin-panel").style.display = "block";
+                document.getElementById("allergen-admin-panel").style.display = "block";
+                document.getElementById("user-management-panel").style.display = "block";
+                document.getElementById("admin-name-display").innerHTML = data.username + " (Глобальный)";
+                document.getElementById("user-badge").innerHTML = data.username;
+                document.getElementById("user-allergens-card").style.display = "none";
+            } 
+            else if (isAllergenAdmin) {
+                document.getElementById("user-admin-panel").style.display = "block";
+                document.getElementById("allergen-admin-panel").style.display = "block";
+                document.getElementById("admin-name-display").innerHTML = data.username + " (Аллерген-админ)";
+                document.getElementById("user-badge").innerHTML = data.username;
+                document.getElementById("user-allergens-card").style.display = "none";
+            }
+            else if (isUserAdmin) {
+                document.getElementById("user-admin-panel").style.display = "block";
+                document.getElementById("user-management-panel").style.display = "block";
+                document.getElementById("admin-name-display").innerHTML = data.username + " (User-админ)";
+                document.getElementById("user-badge").innerHTML = data.username;
+                document.getElementById("user-allergens-card").style.display = "none";
+            }
+            else if (isRegularUser) {
+                document.getElementById("user-authed-panel").style.display = "block";
+                document.getElementById("user-allergens-card").style.display = "block";
+                document.getElementById("username-display").innerHTML = data.username;
+                document.getElementById("user-badge").innerHTML = data.username;
+                await loadUserAllergensFromDB();
+            }
         } else {
             currentUser = null;
-            document.getElementById("user-info").style.display = "block";
-            document.getElementById("user-details").style.display = "none";
-            document.getElementById("user-allergens-card").style.display = "none";
-            document.getElementById("admin-panel").style.display = "none";
-            document.getElementById("allergen-admin-panel").style.display = "none";
+            document.getElementById("user-guest-panel").style.display = "block";
+            document.getElementById("user-authed-panel").style.display = "none";
             document.getElementById("user-admin-panel").style.display = "none";
+            document.getElementById("global-admin-panel").style.display = "none";
+            document.getElementById("allergen-admin-panel").style.display = "none";
+            document.getElementById("user-management-panel").style.display = "none";
+            document.getElementById("allergen-select-card").style.display = "block";
+            document.getElementById("user-allergens-card").style.display = "none";
             document.getElementById("user-badge").innerHTML = "Гость";
-            if (currentAllergen !== "birch") {
-                await changeAllergen("birch");
-            }
+            
+            currentAllergen = "birch";
         }
     } catch (error) {
         console.error("Ошибка проверки авторизации:", error);
@@ -722,14 +830,14 @@ async function login(email, password) {
         if (data.success) {
             await checkAuth();
             closeModal();
-            alert("Вход выполнен успешно!");
+            showToast("Вход выполнен успешно!");
             return true;
         } else {
-            alert(data.error);
+            showToast(data.error, "error");
             return false;
         }
     } catch (error) {
-        alert("Ошибка при входе");
+        showToast("Ошибка при входе", "error");
         return false;
     }
 }
@@ -746,14 +854,14 @@ async function register(username, email, password) {
         if (data.success) {
             await checkAuth();
             closeModal();
-            alert("Регистрация успешна!");
+            showToast("Регистрация успешна!");
             return true;
         } else {
-            alert(data.error);
+            showToast(data.error, "error");
             return false;
         }
     } catch (error) {
-        alert("Ошибка при регистрации");
+        showToast("Ошибка при регистрации", "error");
         return false;
     }
 }
@@ -763,8 +871,27 @@ async function logout() {
         await fetch("/api/logout", { method: "POST", credentials: "include" });
         currentUser = null;
         await checkAuth();
-        alert("Вы вышли из системы");
+        
+        if (pointAMarker) myMap.geoObjects.remove(pointAMarker);
+        if (pointBMarker) myMap.geoObjects.remove(pointBMarker);
+        if (currentRoute) myMap.geoObjects.remove(currentRoute);
+        pointA = null;
+        pointB = null;
+        pointAMarker = null;
+        pointBMarker = null;
+        currentRoute = null;
+        isSelectingPointA = true;
+        
+        document.getElementById("route-status").textContent = "Выберите точку A";
+        document.getElementById("point-a-risk").innerHTML = "—";
+        document.getElementById("point-b-risk").innerHTML = "—";
+        document.getElementById("point-a-coords").innerHTML = "—";
+        document.getElementById("point-b-coords").innerHTML = "—";
+        document.getElementById("route-risk").innerHTML = "—";
+        document.getElementById("route-details").innerHTML = "Маршрут ещё не построен";
+        
         await changeAllergen("birch");
+        showToast("Вы вышли из системы");
     } catch (error) {
         console.error("Ошибка при выходе:", error);
     }
@@ -777,7 +904,11 @@ async function logout() {
 const modal = document.getElementById("auth-modal");
 const modalClose = document.querySelector(".modal-close");
 
-function openModal() { modal.style.display = "flex"; }
+function openModal() { 
+    modal.style.display = "flex";
+    document.getElementById("login-form").style.display = "block";
+    document.getElementById("register-form").style.display = "none";
+}
 function closeModal() {
     modal.style.display = "none";
     document.getElementById("login-form").style.display = "block";
@@ -811,29 +942,29 @@ function init() {
     
     document.getElementById("login-btn").addEventListener("click", openModal);
     document.getElementById("register-btn").addEventListener("click", openModal);
-    modalClose.addEventListener("click", closeModal);
+    if (modalClose) modalClose.addEventListener("click", closeModal);
     window.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
     
-    document.getElementById("show-register").addEventListener("click", (e) => {
+    document.getElementById("show-register")?.addEventListener("click", (e) => {
         e.preventDefault();
         document.getElementById("login-form").style.display = "none";
         document.getElementById("register-form").style.display = "block";
     });
-    document.getElementById("show-login").addEventListener("click", (e) => {
+    document.getElementById("show-login")?.addEventListener("click", (e) => {
         e.preventDefault();
         document.getElementById("register-form").style.display = "none";
         document.getElementById("login-form").style.display = "block";
     });
     
-    document.getElementById("login-submit").addEventListener("click", async () => {
+    document.getElementById("login-submit")?.addEventListener("click", async () => {
         await login(document.getElementById("login-email").value, document.getElementById("login-password").value);
     });
-    document.getElementById("register-submit").addEventListener("click", async () => {
+    document.getElementById("register-submit")?.addEventListener("click", async () => {
         await register(document.getElementById("reg-username").value, document.getElementById("reg-email").value, document.getElementById("reg-password").value);
     });
-    document.getElementById("logout-btn").addEventListener("click", logout);
-    
-    document.getElementById("show-history-btn").addEventListener("click", showRouteHistory);
+    document.getElementById("logout-btn")?.addEventListener("click", logout);
+    document.getElementById("logout-admin-btn")?.addEventListener("click", logout);
+    document.getElementById("show-history-btn")?.addEventListener("click", showRouteHistory);
     
     document.querySelectorAll(".allergen-item").forEach(button => {
         button.addEventListener("click", async function() {
@@ -841,50 +972,27 @@ function init() {
         });
     });
     
-    // ========== АДМИНСКИЕ КНОПКИ ==========
-    const adminUsersBtn = document.getElementById("admin-users-btn");
-    if (adminUsersBtn) {
-        adminUsersBtn.addEventListener("click", () => {
-            loadAdminModal("/admin/users-list", "👥 Все пользователи");
-        });
-    }
-    
-    const adminStatsBtn = document.getElementById("admin-stats-btn");
-    if (adminStatsBtn) {
-        adminStatsBtn.addEventListener("click", () => {
-            loadAdminModal("/admin/global", "📊 Системная статистика");
-        });
-    }
-    
-    // Админ по аллергенам
-    const allergenZonesBtn = document.getElementById("allergen-zones-btn");
-    if (allergenZonesBtn) {
-        allergenZonesBtn.addEventListener("click", () => {
-            loadAdminModal("/admin/allergen", "🌾 Управление опасными зонами");
-        });
-    }
-
-    const allergenStatsBtn = document.getElementById("allergen-stats-btn");
-    if (allergenStatsBtn) {
-        allergenStatsBtn.addEventListener("click", () => {
-            loadAdminModal("/admin/allergen/stats", "📊 Статистика зон");
-        });
-    }
-    
-    const userListBtn = document.getElementById("user-list-btn");
-    if (userListBtn) {
-        userListBtn.addEventListener("click", () => {
-            loadAdminModal("/admin/user", "👥 Управление пользователями");
-        });
-    }
-    
-    const userStatsBtn = document.getElementById("user-stats-btn");
-    if (userStatsBtn) {
-        userStatsBtn.addEventListener("click", () => {
-            loadAdminModal("/admin/user-stats", "📊 Статистика маршрутов");
-        });
-    }
-    // =====================================
+    document.getElementById("admin-users-btn")?.addEventListener("click", () => {
+        loadAdminModal("/admin/users-list", "Все пользователи");
+    });
+    document.getElementById("admin-stats-btn")?.addEventListener("click", () => {
+        loadAdminModal("/admin/global", "Системная статистика");
+    });
+    document.getElementById("admin-logs-btn")?.addEventListener("click", () => {
+        loadAdminModal("/admin/logs", "Системные логи");
+    });
+    document.getElementById("allergen-zones-btn")?.addEventListener("click", () => {
+        loadAdminModal("/admin/allergen", "Управление опасными зонами");
+    });
+    document.getElementById("allergen-stats-btn")?.addEventListener("click", () => {
+        loadAdminModal("/admin/allergen/stats", "Статистика зон");
+    });
+    document.getElementById("user-list-btn")?.addEventListener("click", () => {
+        loadAdminModal("/admin/user", "Управление пользователями");
+    });
+    document.getElementById("user-stats-btn")?.addEventListener("click", () => {
+        loadAdminModal("/admin/user-stats", "Статистика маршрутов");
+    });
     
     checkAuth();
     switchMode("map");

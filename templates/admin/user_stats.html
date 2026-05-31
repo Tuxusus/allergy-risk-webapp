@@ -2,22 +2,44 @@
 
 {% block content %}
 <div class="admin-card">
-    <h2>📊 Статистика опасных зон по аллергенам</h2>
-    <table style="width: 100%; border-collapse: collapse;">
+    <h2>Статистика пользователей</h2>
+    {% if stats %}
+    <table class="admin-table">
         <thead>
-            <tr style="background: #f0f0f0;">
-                <th style="padding: 10px;">Аллерген</th>
-                <th style="padding: 10px;">Количество зон</th>
+            <tr>
+                <th>ID</th>
+                <th>Имя пользователя</th>
+                <th>Email</th>
+                <th>Количество маршрутов</th>
+                <th>Используемые аллергены</th>
             </tr>
         </thead>
         <tbody>
             {% for s in stats %}
-            <tr style="border-bottom: 1px solid #ddd;">
-                <td style="padding: 8px;">{{ s.allergen_label }}</td>
-                <td style="padding: 8px;"><strong>{{ s.count }}</strong></td>
+            <tr>
+                <td>{{ s.id }}</td>
+                <td><strong>{{ s.username }}</strong></td>
+                <td>{{ s.email }}</td>
+                <td class="routes-count">
+                    {% if s.routes_count > 0 %}
+                        {{ s.routes_count }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.allergens_used_ru and s.allergens_used_ru != '—' %}
+                        {{ s.allergens_used_ru }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <p class="empty-message">Нет данных для отображения</p>
+    {% endif %}
 </div>
 {% endblock %}

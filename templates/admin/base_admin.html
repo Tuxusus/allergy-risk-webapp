@@ -3,83 +3,235 @@
 <head>
     <meta charset="UTF-8">
     <title>Админ-панель - Allergy Risk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background: #f0f4f8;
-            padding: 20px;
+        
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --border: #334155;
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --purple: #8b5cf6;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
+        
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            font-family: 'Inter', system-ui, sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
         .admin-container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
+        
         .admin-header {
-            background: white;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(20px);
             border-radius: 24px;
-            padding: 20px 28px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            padding: 16px 24px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid var(--border);
         }
-        .admin-header h1 { font-size: 24px; color: #1a2a3a; }
-        .admin-header .user-info { color: #4a5a6a; }
-        .admin-header .logout-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 20px;
-            cursor: pointer;
+        
+        .admin-header h1 {
+            font-size: 20px;
+            background: linear-gradient(135deg, white, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        .admin-card {
-            background: white;
-            border-radius: 24px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        
+        .admin-header .user-info {
+            color: var(--text-secondary);
+            margin-right: 16px;
+            font-size: 13px;
         }
-        .admin-card h2 {
-            font-size: 18px;
-            margin-bottom: 16px;
-            color: #2ecc71;
-        }
-        button, .btn {
-            background: #2ecc71;
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border: none;
             padding: 10px 20px;
             border-radius: 12px;
+            font-weight: 600;
+            font-size: 13px;
             cursor: pointer;
-            margin-right: 10px;
-            margin-bottom: 10px;
+            transition: all 0.3s ease;
         }
-        button.danger { background: #e74c3c; }
-        table {
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        
+        .logout-btn {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .admin-card {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+        
+        .admin-card h2 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(16, 185, 129, 0.1);
+            padding: 14px 16px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .admin-form {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+        
+        input, select {
+            padding: 10px 14px;
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 13px;
+            flex: 1;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .admin-table {
             width: 100%;
             border-collapse: collapse;
         }
-        th, td {
-            padding: 12px;
+        
+        .admin-table th, 
+        .admin-table td {
+            padding: 10px 8px;
             text-align: left;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
         }
-        th { background: #f8fafc; }
-        .message {
-            padding: 12px;
-            border-radius: 12px;
-            margin-bottom: 16px;
+        
+        .admin-table th {
+            color: var(--primary);
+            font-weight: 600;
         }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
+        
+        .admin-table tr:hover {
+            background: rgba(16, 185, 129, 0.05);
+        }
+        
+        .empty-message {
+            color: var(--text-muted);
+            text-align: center;
+            padding: 30px;
+            font-size: 13px;
+        }
+        
+        .zone-name {
+            font-weight: 600;
+        }
+        
+        .coords {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .status-active {
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .status-blocked {
+            color: var(--danger);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
     <div class="admin-container">
         <div class="admin-header">
-            <h1>🔧 Админ-панель Allergy Risk</h1>
+            <h1>Админ-панель Allergy Risk</h1>
             <div>
                 <span class="user-info">{{ username }} ({{ role }})</span>
                 <button class="logout-btn" onclick="logout()">Выйти</button>
@@ -89,8 +241,8 @@
     </div>
     <script>
         function logout() {
-            fetch('/api/logout', { method: 'POST' })
-                .then(() => { window.location.href = '/'; });
+            fetch('/api/logout', { method: 'POST', credentials: 'include' })
+                .then(function() { window.location.href = '/'; });
         }
     </script>
 </body>

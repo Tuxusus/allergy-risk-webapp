@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -9,10 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://api-maps.yandex.ru/2.1/?apikey=ef45c9a8-2dbb-41a1-af00-3a189a8eb9bb&lang=ru_RU&load=package.full" type="text/javascript"></script>
 </head>
-
 <body>
     <div class="app-shell">
-        <!-- LEFT SIDEBAR -->
         <aside class="sidebar">
             <div class="brand">
                 <div class="brand-logo">AR</div>
@@ -22,93 +19,90 @@
                 </div>
             </div>
 
-            <!-- USER PANEL -->
-            <div class="side-card">
-                <div class="side-card-title">👤 Пользователь</div>
-                <div id="user-info">
-                    <button class="auth-btn" id="login-btn">Вход</button>
-                    <button class="auth-btn" id="register-btn">Регистрация</button>
-                </div>
-                <div id="user-details" style="display: none; margin-top: 10px;">
-                    <div id="username-display" style="margin-bottom: 10px; font-weight: bold;"></div>
-                    <button class="auth-btn" id="show-history-btn" style="background: #3498db; margin-bottom: 10px;">📜 Мои маршруты</button>
-                    <button class="auth-btn" id="logout-btn" style="background: #e74c3c;">Выйти</button>
-                </div>
+            <div class="side-card" id="user-guest-panel">
+                <div class="side-card-title">Вход в систему</div>
+                <button class="btn btn-primary" id="login-btn">Вход</button>
+                <button class="btn btn-secondary" id="register-btn">Регистрация</button>
+                <div class="hint-text">Войдите, чтобы сохранять маршруты</div>
             </div>
 
-            <!-- GLOBAL ADMIN PANEL (только глобальный админ) -->
-            <div class="side-card" id="admin-panel" style="display: none;">
-                <div class="side-card-title">🔧 Администрирование</div>
-                <button id="admin-users-btn" class="auth-btn" style="background: #9b59b6;">👥 Все пользователи</button>
-                <button id="admin-stats-btn" class="auth-btn" style="background: #f39c12;">📊 Системная статистика</button>
+            <div class="side-card" id="user-authed-panel" style="display: none;">
+                <div class="side-card-title">Мой профиль</div>
+                <div id="username-display" style="margin-bottom: 12px; font-weight: 600; color: var(--primary); text-align: center;"></div>
+                <button class="btn btn-primary" id="show-history-btn">Мои маршруты</button>
+                <button class="btn btn-outline" id="logout-btn">Выйти</button>
             </div>
 
-            <!-- ALLERGEN ADMIN PANEL (только админ по аллергенам) -->
-            <div class="side-card" id="allergen-admin-panel" style="display: none;">
-                <div class="side-card-title">🌾 Управление аллергенами</div>
-                <button id="allergen-zones-btn" class="auth-btn" style="background: #f39c12;">🗺️ Опасные зоны</button>
-                <button id="allergen-stats-btn" class="auth-btn" style="background: #3498db;">📊 Статистика зон</button>
-            </div>
-
-            <!-- USER ADMIN PANEL (только админ по пользователям) -->
             <div class="side-card" id="user-admin-panel" style="display: none;">
-                <div class="side-card-title">👥 Управление пользователями</div>
-                <button id="user-list-btn" class="auth-btn" style="background: #3498db;">📋 Пользователи</button>
-                <button id="user-stats-btn" class="auth-btn" style="background: #2ecc71;">📊 Статистика маршрутов</button>
+                <div class="side-card-title">Администратор</div>
+                <div id="admin-name-display" style="margin-bottom: 12px; font-weight: 600; color: var(--primary); text-align: center;"></div>
+                <button class="btn btn-outline" id="logout-btn">Выйти</button>
+                <div class="hint-text">У вас права администратора</div>
             </div>
 
-            <!-- MODES -->
+            <div class="side-card" id="global-admin-panel" style="display: none;">
+                <div class="side-card-title">Глобальное управление</div>
+                <button class="btn btn-primary" id="admin-users-btn">Все пользователи</button>
+                <button class="btn btn-primary" id="admin-stats-btn">Системная статистика</button>
+                <button class="btn btn-primary" id="admin-logs-btn">Системные логи</button>
+            </div>
+
+            <div class="side-card" id="allergen-admin-panel" style="display: none;">
+                <div class="side-card-title">Управление зонами</div>
+                <button class="btn btn-primary" id="allergen-zones-btn">Опасные зоны</button>
+                <button class="btn btn-primary" id="allergen-stats-btn">Статистика зон</button>
+            </div>
+
+            <div class="side-card" id="user-management-panel" style="display: none;">
+                <div class="side-card-title">Управление пользователями</div>
+                <button class="btn btn-primary" id="user-list-btn">Список пользователей</button>
+                <button class="btn btn-primary" id="user-stats-btn">Статистика пользователей</button>
+            </div>
+
             <nav class="side-menu">
-                <button class="side-link" id="mode-map">🌾 Карта пыльцы</button>
-                <button class="side-link active" id="mode-route">🛣️ Маршруты</button>
+                <button class="side-link active" id="mode-map">Карта пыльцы</button>
+                <button class="side-link" id="mode-route">Построить маршрут</button>
             </nav>
 
-            <!-- ALLERGENS -->
-            <div class="side-card">
-                <div class="side-card-title">🌿 Аллергены</div>
+            <div class="side-card" id="allergen-select-card">
+                <div class="side-card-title">Выбор аллергена</div>
                 <div class="allergen-list">
-                    <button class="allergen-item active" data-allergen="birch">🌳 Берёза</button>
-                    <button class="allergen-item" data-allergen="grass">🌾 Злаки</button>
-                    <button class="allergen-item" data-allergen="ragweed">🍂 Амброзия</button>
+                    <button class="allergen-item active" data-allergen="birch">Берёза</button>
+                    <button class="allergen-item" data-allergen="grass">Злаки</button>
+                    <button class="allergen-item" data-allergen="ragweed">Амброзия</button>
                 </div>
             </div>
 
-            <!-- USER ALLERGENS SELECTION -->
             <div class="side-card" id="user-allergens-card" style="display: none;">
-                <div class="side-card-title">⭐ Мои аллергены</div>
+                <div class="side-card-title">Мои аллергены</div>
                 <div class="allergen-checkbox-list">
                     <label class="checkbox-item">
                         <input type="checkbox" value="birch" id="user-allergen-birch">
-                        <span>🌳 Берёза</span>
+                        <span>Берёза</span>
                     </label>
                     <label class="checkbox-item">
                         <input type="checkbox" value="grass" id="user-allergen-grass">
-                        <span>🌾 Злаки</span>
+                        <span>Злаки</span>
                     </label>
                     <label class="checkbox-item">
                         <input type="checkbox" value="ragweed" id="user-allergen-ragweed">
-                        <span>🍂 Амброзия</span>
+                        <span>Амброзия</span>
                     </label>
                 </div>
-                <button id="save-allergens-btn" class="save-btn">💾 Сохранить выбор</button>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 12px; text-align: center;">
-                    ⚡ Маршруты будут строиться с учётом выбранных аллергенов
-                </div>
+                <button class="btn btn-primary" id="save-allergens-btn">Сохранить выбор</button>
+                <div class="hint-text">Маршруты будут строиться с учётом ваших аллергенов</div>
             </div>
 
-            <!-- RESET BUTTON -->
-            <button id="reset-route-btn" class="reset-btn">🔄 Сбросить маршрут</button>
+            <button class="btn btn-outline" id="reset-route-btn">Сбросить маршрут</button>
 
-            <!-- STATUS -->
             <div class="status-box" id="route-status">Выберите точку A</div>
         </aside>
 
-        <!-- CENTER - MAP -->
         <main class="main-layout">
             <header class="topbar">
                 <div>
-                    <div class="page-title" id="page-title">Безопасный маршрут</div>
-                    <div class="page-subtitle" id="page-subtitle">Выберите точки A и Б на карте</div>
+                    <div class="page-title" id="page-title">Карта пыльцы</div>
+                    <div class="page-subtitle" id="page-subtitle">Аллерген: Берёза</div>
                 </div>
                 <div class="topbar-badge" id="user-badge">Гость</div>
             </header>
@@ -117,55 +111,51 @@
             </section>
         </main>
 
-        <!-- RIGHT PANEL -->
         <aside class="rightbar">
-            <!-- MAP MODE PANEL -->
-            <div id="map-panel" style="display: none;">
+            <div id="map-panel">
                 <div class="panel-card">
-                    <div class="panel-title">🌾 Информация о точке</div>
+                    <div class="panel-title">Информация о точке</div>
                     <div class="map-main-risk" id="main-risk-box">—</div>
                     <div class="map-main-info" id="main-info">Нажмите на карту</div>
                 </div>
                 <div class="panel-card">
-                    <div class="panel-title">🌤️ Погода</div>
+                    <div class="panel-title">Погода</div>
                     <div class="map-info" id="weather-info">—</div>
                 </div>
                 <div class="panel-card">
-                    <div class="panel-title">🌫️ Воздух</div>
+                    <div class="panel-title">Воздух</div>
                     <div class="map-info" id="air-info">—</div>
                 </div>
                 <div class="panel-card">
-                    <div class="panel-title">📅 Прогноз</div>
+                    <div class="panel-title">Прогноз</div>
                     <div class="map-info" id="forecast-info">—</div>
                 </div>
             </div>
 
-            <!-- ROUTE MODE PANEL -->
-            <div id="route-panel">
+            <div id="route-panel" style="display: none;">
                 <div class="panel-card">
-                    <div class="panel-title">📍 Точка A</div>
+                    <div class="panel-title">Точка A</div>
                     <div class="risk-badge" id="point-a-risk">—</div>
                     <div class="point-meta">Координаты: <span id="point-a-coords">—</span></div>
                 </div>
                 <div class="panel-card">
-                    <div class="panel-title">📍 Точка Б</div>
+                    <div class="panel-title">Точка Б</div>
                     <div class="risk-badge" id="point-b-risk">—</div>
                     <div class="point-meta">Координаты: <span id="point-b-coords">—</span></div>
                 </div>
                 <div class="panel-card">
-                    <div class="panel-title">🛡️ Маршрут</div>
+                    <div class="panel-title">Риск маршрута</div>
                     <div class="route-risk-box" id="route-risk">—</div>
                     <div class="route-details" id="route-details">Маршрут ещё не построен</div>
                 </div>
                 <div class="panel-card">
-                    <div class="panel-title">💡 Рекомендации</div>
+                    <div class="panel-title">Рекомендации</div>
                     <div class="route-details" id="comparison">—</div>
                 </div>
             </div>
         </aside>
     </div>
 
-    <!-- MODAL WINDOW FOR LOGIN/REGISTER -->
     <div id="auth-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <span class="modal-close">&times;</span>
@@ -187,9 +177,8 @@
         </div>
     </div>
 
-    <!-- MODAL WINDOW FOR ADMIN CONTENT -->
     <div id="admin-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="width: 800px; max-width: 90%;">
+        <div class="modal-content large">
             <span class="modal-close" id="admin-modal-close">&times;</span>
             <div id="admin-modal-content"></div>
         </div>
@@ -197,5 +186,4 @@
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
-
 </html>

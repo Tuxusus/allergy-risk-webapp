@@ -1,24 +1,27 @@
+{% extends "admin/base_admin.html" %}
+
+{% block content %}
 <div class="admin-card">
-    <h2>📊 Статистика опасных зон по аллергенам</h2>
-    
-    {% if stats %}
-    <table style="width: 100%; border-collapse: collapse;">
+    <h2>Статистика опасных зон по типам аллергенов</h2>
+    {% if stats and stats|length > 0 %}
+    <table class="admin-table">
         <thead>
-            <tr style="background: var(--panel-soft);">
-                <th style="padding: 12px; text-align: left;">Аллерген</th>
-                <th style="padding: 12px; text-align: left;">Количество зон</th>
+            <tr>
+                <th>Аллерген</th>
+                <th>Количество зон</th>
             </tr>
         </thead>
         <tbody>
             {% for s in stats %}
-            <tr style="border-bottom: 1px solid var(--border);">
-                <td style="padding: 10px;">{{ s.allergen_label }}</td>
-                <td style="padding: 10px;"><strong>{{ s.count }}</strong></td>
+            <tr>
+                <td>{{ s.allergen_label }}</td>
+                <td><strong>{{ s.count }}</strong></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <p style="color: var(--text-muted);">📭 Нет данных об опасных зонах</p>
+    <p class="empty-message">Нет данных об опасных зонах</p>
     {% endif %}
 </div>
+{% endblock %}
