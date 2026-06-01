@@ -1,6 +1,7 @@
 {% extends "admin/base_admin.html" %}
 
 {% block content %}
+<!-- Форма добавления новой зоны -->
 <div class="admin-card">
     <h2>Добавить новую опасную зону</h2>
     <form method="POST" action="/admin/allergen/add-zone" class="admin-form">
@@ -34,6 +35,71 @@
     </form>
 </div>
 
+<!-- Массовое изменение радиуса -->
+<div class="admin-card">
+    <h2>Массовое изменение радиуса зон</h2>
+    <form method="POST" action="/admin/allergen/batch-update-radius" class="admin-form" onsubmit="return confirmBatchRadius()">
+        <div class="form-group">
+            <div class="form-field">
+                <label>Тип аллергена</label>
+                <select name="allergen_type" required>
+                    <option value="">Выберите аллерген</option>
+                    <option value="birch">Берёза</option>
+                    <option value="grass">Злаки</option>
+                    <option value="ragweed">Амброзия</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Операция</label>
+                <select name="operation" required>
+                    <option value="set">Установить фиксированное значение</option>
+                    <option value="add">Прибавить к текущему</option>
+                    <option value="subtract">Вычесть из текущего</option>
+                    <option value="multiply">Умножить на коэффициент</option>
+                    <option value="percent_increase">Увеличить на %</option>
+                    <option value="percent_decrease">Уменьшить на %</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Значение</label>
+                <input type="number" name="value" step="any" required placeholder="Число">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Применить ко всем зонам</button>
+    </form>
+</div>
+
+<!-- Массовое изменение severity -->
+<div class="admin-card">
+    <h2>Массовое изменение уровня опасносности зон</h2>
+    <form method="POST" action="/admin/allergen/batch-update-severity" class="admin-form" id="batch-severity-form" onsubmit="return confirmBatchSeverity()">
+        <div class="form-group">
+            <div class="form-field">
+                <label>Тип аллергена</label>
+                <select name="allergen_type" required>
+                    <option value="">Выберите аллерген</option>
+                    <option value="birch">Берёза</option>
+                    <option value="grass">Злаки</option>
+                    <option value="ragweed">Амброзия</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Новый уровень опасности зоны</label>
+                <select name="severity" required>
+                    <option value="0">0 - Деактивирована</option>
+                    <option value="1">1 - Низкая опасность</option>
+                    <option value="2">2 - Ниже среднего</option>
+                    <option value="3">3 - Средняя опасность</option>
+                    <option value="4">4 - Высокая опасность</option>
+                    <option value="5">5 - Критическая опасность</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Применить ко всем зонам</button>
+    </form>
+</div>
+
+<!-- Список существующих зон -->
 <div class="admin-card">
     <h2>Существующие опасные зоны</h2>
     {% if zones and zones|length > 0 %}
@@ -45,6 +111,7 @@
                 <th>Координаты</th>
                 <th>Радиус</th>
                 <th>Аллерген</th>
+                <th>Severity</th>
                 <th>Действие</th>
             </tr>
         </thead>
@@ -65,6 +132,17 @@
                     {% endif %}
                 </span>
                 <td>
+                    {% if zone.severity >= 4 %}
+                        <span class="risk-high-badge">{{ zone.severity }}</span>
+                    {% elif zone.severity >= 2 %}
+                        <span class="risk-medium-badge">{{ zone.severity }}</span>
+                    {% elif zone.severity == 1 %}
+                        <span class="risk-low-badge">{{ zone.severity }}</span>
+                    {% else %}
+                        <span style="background: #e0e0e0; padding: 2px 8px; border-radius: 12px;">{{ zone.severity }}</span>
+                    {% endif %}
+                </span>
+                <td>
                     <form method="POST" action="/admin/allergen/delete-zone" onsubmit="return confirm('Удалить зону {{ zone.name }}?');" style="margin:0;">
                         <input type="hidden" name="zone_id" value="{{ zone.id }}">
                         <button type="submit" class="btn btn-danger-pale btn-sm">Удалить</button>
@@ -78,4 +156,19 @@
     <p class="empty-message">Нет добавленных опасных зон</p>
     {% endif %}
 </div>
+
+<script>
+function confirmBatchRadius() {
+    const allergen = document.querySelector('select[name="allergen_type"]').options[document.querySelector('select[name="allergen_type"]').selectedIndex].text;
+    const operation = document.querySelector('select[name="operation"]').options[document.querySelector('select[name="operation"]').selectedIndex].text;
+    const value = document.querySelector('input[name="value"]').value;
+    return confirm(`Вы уверены, что хотите изменить радиус ВСЕХ зон для "${allergen}"?\n\nОперация: ${operation}\nЗначение: ${value}\n\nЭто действие затронет все зоны данного типа аллергена.`);
+}
+
+function confirmBatchSeverity() {
+    const allergen = document.querySelector('#batch-severity-form select[name="allergen_type"]').options[document.querySelector('#batch-severity-form select[name="allergen_type"]').selectedIndex].text;
+    const severity = document.querySelector('#batch-severity-form select[name="severity"]').options[document.querySelector('#batch-severity-form select[name="severity"]').selectedIndex].text;
+    return confirm(`Вы уверены, что хотите изменить уровень опасности ВСЕХ зон для "${allergen}"?\n\nНовый уровень: ${severity}\n\nЭто действие затронет все зоны данного типа аллергена.`);
+}
+</script>
 {% endblock %}

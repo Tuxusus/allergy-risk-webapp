@@ -18,10 +18,6 @@ let isSelectingPointA = true;
 
 let currentUser = null;
 
-// =====================
-// API ВЫЗОВЫ
-// =====================
-
 async function fetchRisk(lat, lon) {
     try {
         const response = await fetch("/api/risk", {
@@ -75,33 +71,33 @@ function updateRiskBadge(element, riskLevel) {
 function getDangerZones() {
     if (currentAllergen === "birch") {
         return [
-            { name: "ВДНХ", coords: [55.7800, 37.6000], radius: 1500 },
-            { name: "Лосиный остров", coords: [55.8300, 37.6500], radius: 2000 },
-            { name: "Нескучный сад", coords: [55.7400, 37.5500], radius: 1200 },
-            { name: "Битцевский лес", coords: [55.6700, 37.5800], radius: 1800 },
-            { name: "Измайловский парк", coords: [55.7900, 37.7800], radius: 1500 },
-            { name: "Царицыно", coords: [55.7000, 37.6500], radius: 1300 },
-            { name: "Сокольники", coords: [55.8000, 37.6800], radius: 1400 }
-        ];
+            { name: "ВДНХ", coords: [55.7800, 37.6000], radius: 1500, severity: 5 },
+            { name: "Лосиный остров", coords: [55.8300, 37.6500], radius: 2000, severity: 5 },
+            { name: "Нескучный сад", coords: [55.7400, 37.5500], radius: 1200, severity: 4 },
+            { name: "Битцевский лес", coords: [55.6700, 37.5800], radius: 1800, severity: 4 },
+            { name: "Измайловский парк", coords: [55.7900, 37.7800], radius: 1500, severity: 3 },
+            { name: "Царицыно", coords: [55.7000, 37.6500], radius: 1300, severity: 3 },
+            { name: "Сокольники", coords: [55.8000, 37.6800], radius: 1400, severity: 4 }
+        ].filter(zone => zone.severity > 0);
     } else if (currentAllergen === "grass") {
         return [
-            { name: "Воробьёвы горы", coords: [55.7100, 37.5500], radius: 1200 },
-            { name: "Капотня", coords: [55.6900, 37.7000], radius: 1300 },
-            { name: "Гольяново", coords: [55.8000, 37.8000], radius: 1200 },
-            { name: "Солнцево", coords: [55.7300, 37.3800], radius: 1100 },
-            { name: "Мнёвники", coords: [55.7600, 37.5000], radius: 1200 },
-            { name: "Алтуфьево", coords: [55.9000, 37.5900], radius: 1000 }
-        ];
+            { name: "Воробьёвы горы", coords: [55.7100, 37.5500], radius: 1200, severity: 4 },
+            { name: "Капотня", coords: [55.6900, 37.7000], radius: 1300, severity: 3 },
+            { name: "Гольяново", coords: [55.8000, 37.8000], radius: 1200, severity: 3 },
+            { name: "Солнцево", coords: [55.7300, 37.3800], radius: 1100, severity: 2 },
+            { name: "Мнёвники", coords: [55.7600, 37.5000], radius: 1200, severity: 3 },
+            { name: "Алтуфьево", coords: [55.9000, 37.5900], radius: 1000, severity: 2 }
+        ].filter(zone => zone.severity > 0);
     } else {
         return [
-            { name: "Марьино", coords: [55.6500, 37.6500], radius: 1300 },
-            { name: "Братеево", coords: [55.6300, 37.7200], radius: 1200 },
-            { name: "Северное Бутово", coords: [55.5700, 37.5500], radius: 1100 },
-            { name: "Южное Бутово", coords: [55.5400, 37.5800], radius: 1200 },
-            { name: "Зябликово", coords: [55.6200, 37.7500], radius: 1000 },
-            { name: "Тимирязевский", coords: [55.8200, 37.5800], radius: 1200 },
-            { name: "Гольяново", coords: [55.8000, 37.8000], radius: 1200 }
-        ];
+            { name: "Марьино", coords: [55.6500, 37.6500], radius: 1300, severity: 4 },
+            { name: "Братеево", coords: [55.6300, 37.7200], radius: 1200, severity: 4 },
+            { name: "Северное Бутово", coords: [55.5700, 37.5500], radius: 1100, severity: 3 },
+            { name: "Южное Бутово", coords: [55.5400, 37.5800], radius: 1200, severity: 3 },
+            { name: "Зябликово", coords: [55.6200, 37.7500], radius: 1000, severity: 3 },
+            { name: "Тимирязевский", coords: [55.8200, 37.5800], radius: 1200, severity: 2 },
+            { name: "Гольяново", coords: [55.8000, 37.8000], radius: 1200, severity: 2 }
+        ].filter(zone => zone.severity > 0);
     }
 }
 
@@ -642,10 +638,6 @@ async function showRouteHistory() {
     }
 }
 
-// =====================
-// АДМИН-МОДАЛЬНОЕ ОКНО
-// =====================
-
 const adminModal = document.getElementById("admin-modal");
 const adminModalClose = document.getElementById("admin-modal-close");
 
@@ -757,9 +749,27 @@ adminModal.addEventListener("click", (e) => {
 });
 if (adminModalClose) adminModalClose.addEventListener("click", closeAdminModal);
 
-// =====================
-// АВТОРИЗАЦИЯ
-// =====================
+async function requestPasswordReset(email) {
+    try {
+        const response = await fetch("/api/request-password-reset", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email })
+        });
+        const data = await response.json();
+        if (data.success) {
+            alert(data.message);
+            closeModal();
+            return true;
+        } else {
+            alert(data.error || "Ошибка");
+            return false;
+        }
+    } catch (error) {
+        alert("Ошибка отправки запроса");
+        return false;
+    }
+}
 
 async function checkAuth() {
     try {
@@ -914,7 +924,6 @@ async function logout() {
             await changeAllergen("birch");
             showToast("Вы вышли из системы");
             
-            // Перенаправляем на главную страницу
             setTimeout(() => {
                 window.location.href = "/";
             }, 1000);
@@ -927,10 +936,6 @@ async function logout() {
     }
 }
 
-// =====================
-// МОДАЛЬНОЕ ОКНО АВТОРИЗАЦИИ
-// =====================
-
 const modal = document.getElementById("auth-modal");
 const modalClose = document.querySelector(".modal-close");
 
@@ -938,28 +943,35 @@ function openLoginModal() {
     modal.style.display = "flex";
     document.getElementById("login-form").style.display = "block";
     document.getElementById("register-form").style.display = "none";
+    document.getElementById("forgot-password-form").style.display = "none";
 }
 
 function openRegisterModal() { 
     modal.style.display = "flex";
     document.getElementById("login-form").style.display = "none";
     document.getElementById("register-form").style.display = "block";
+    document.getElementById("forgot-password-form").style.display = "none";
+}
+
+function openForgotPasswordModal() {
+    modal.style.display = "flex";
+    document.getElementById("login-form").style.display = "none";
+    document.getElementById("register-form").style.display = "none";
+    document.getElementById("forgot-password-form").style.display = "block";
 }
 
 function closeModal() {
     modal.style.display = "none";
     document.getElementById("login-form").style.display = "block";
     document.getElementById("register-form").style.display = "none";
+    document.getElementById("forgot-password-form").style.display = "none";
     document.getElementById("login-email").value = "";
     document.getElementById("login-password").value = "";
     document.getElementById("reg-username").value = "";
     document.getElementById("reg-email").value = "";
     document.getElementById("reg-password").value = "";
+    document.getElementById("reset-email").value = "";
 }
-
-// =====================
-// INIT
-// =====================
 
 function init() {
     myMap = new ymaps.Map("map", {
@@ -979,18 +991,36 @@ function init() {
     
     document.getElementById("login-btn").addEventListener("click", openLoginModal);
     document.getElementById("register-btn").addEventListener("click", openRegisterModal);
+    
+    document.getElementById("forgot-password-btn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        openForgotPasswordModal();
+    });
+    
+    document.getElementById("back-to-login")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        openLoginModal();
+    });
+    
+    document.getElementById("reset-password-submit")?.addEventListener("click", async () => {
+        const email = document.getElementById("reset-email").value;
+        if (!email) {
+            alert("Введите email");
+            return;
+        }
+        await requestPasswordReset(email);
+    });
+    
     if (modalClose) modalClose.addEventListener("click", closeModal);
     window.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
     
     document.getElementById("show-register")?.addEventListener("click", (e) => {
         e.preventDefault();
-        document.getElementById("login-form").style.display = "none";
-        document.getElementById("register-form").style.display = "block";
+        openRegisterModal();
     });
     document.getElementById("show-login")?.addEventListener("click", (e) => {
         e.preventDefault();
-        document.getElementById("register-form").style.display = "none";
-        document.getElementById("login-form").style.display = "block";
+        openLoginModal();
     });
     
     document.getElementById("login-submit")?.addEventListener("click", async () => {
@@ -1000,7 +1030,6 @@ function init() {
         await register(document.getElementById("reg-username").value, document.getElementById("reg-email").value, document.getElementById("reg-password").value);
     });
     
-    // Универсальная кнопка выхода - для всех ролей
     const logoutButtons = document.querySelectorAll("#logout-btn, #logout-admin-btn");
     logoutButtons.forEach(btn => {
         if (btn) {
@@ -1020,16 +1049,16 @@ function init() {
         loadAdminModal("/admin/users-list", "Все пользователи");
     });
     document.getElementById("admin-stats-btn")?.addEventListener("click", () => {
-        loadAdminModal("/admin/global", "Мониторинг активности");
+        loadAdminModal("/admin/global", "Права доступа");
     });
     document.getElementById("admin-logs-btn")?.addEventListener("click", () => {
-        loadAdminModal("/admin/logs", "Системные логи");
+        loadAdminModal("/admin/logs", "Мониторинг активности");
     });
     document.getElementById("allergen-zones-btn")?.addEventListener("click", () => {
         loadAdminModal("/admin/allergen", "Управление опасными зонами");
     });
     document.getElementById("allergen-stats-btn")?.addEventListener("click", () => {
-        loadAdminModal("/admin/allergen/stats", "Анализ распределения зон");
+        loadAdminModal("/admin/allergen/stats", "Аналитика зон");
     });
     document.getElementById("user-list-btn")?.addEventListener("click", () => {
         loadAdminModal("/admin/user", "Управление пользователями");

@@ -26,17 +26,22 @@
 
 <div class="admin-card">
     <h2>Назначить администратора</h2>
-    <form method="POST" action="/admin/global/add-admin" class="admin-form">
+    <form method="POST" action="/admin/global/add-admin" class="admin-form" onsubmit="return confirmAddAdmin()">
         <div class="form-group">
             <div class="form-field">
-                <label>Email пользователя</label>
-                <input type="email" name="email" placeholder="Email пользователя" required>
+                <label>Выберите пользователя</label>
+                <select name="user_id" required>
+                    <option value="">Выберите пользователя</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="form-field">
                 <label>Роль</label>
                 <select name="role">
-                    <option value="allergen_admin">Администратор по аллергенам</option>
-                    <option value="user_admin">Администратор по пользователям</option>
+                    <option value="user_admin">Пользователь-администратор</option>
+                    <option value="allergen_admin">Аллерген-администратор</option>
                 </select>
             </div>
         </div>
@@ -63,13 +68,7 @@
                 <td>{{ admin.id }}</span>
                 <td><strong>{{ admin.username }}</strong></span>
                 <td>{{ admin.email }}</span>
-                <td>
-                    {% if admin.role == 'allergen_admin' %}
-                        Аллерген-администратор
-                    {% elif admin.role == 'user_admin' %}
-                        Пользователь-администратор
-                    {% endif %}
-                </span>
+                <td>{{ admin.role_name }}</span>
                 <td>
                     <form method="POST" action="/admin/global/remove-admin" onsubmit="return confirm('Снять права администратора с пользователя {{ admin.username }}?');" style="margin:0;">
                         <input type="hidden" name="user_id" value="{{ admin.id }}">
@@ -84,4 +83,99 @@
     <p class="empty-message">Нет назначенных администраторов</p>
     {% endif %}
 </div>
+
+<div class="admin-card">
+    <h2>Статистика по типам пользователей</h2>
+    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div class="stat-card" style="flex: 1;">
+            <span class="stat-label">Глобальные администраторы</span>
+            <span class="stat-value">{{ global_admins_count|default(0) }}</span>
+        </div>
+        <div class="stat-card" style="flex: 1;">
+            <span class="stat-label">Аллерген-администраторы</span>
+            <span class="stat-value">{{ allergen_admins_count|default(0) }}</span>
+        </div>
+        <div class="stat-card" style="flex: 1;">
+            <span class="stat-label">Пользователь-администраторы</span>
+            <span class="stat-value">{{ user_admins_count|default(0) }}</span>
+        </div>
+        <div class="stat-card" style="flex: 1;">
+            <span class="stat-label">Обычные пользователи</span>
+            <span class="stat-value">{{ regular_users }}</span>
+        </div>
+    </div>
+</div>
+</script>
+
+<style>
+.stat-card {
+    background: #f8faf8;
+    padding: 14px 16px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border);
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.form-group {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.form-field {
+    flex: 1;
+}
+
+.form-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.form-field input,
+.form-field select {
+    width: 100%;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.btn-primary {
+    white-space: nowrap;
+    padding: 10px 20px;
+}
+
+@media (max-width: 768px) {
+    .form-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .btn-primary {
+        white-space: normal;
+    }
+}
+</style>
 {% endblock %}

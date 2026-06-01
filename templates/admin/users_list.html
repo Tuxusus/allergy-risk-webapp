@@ -11,14 +11,15 @@
                 <th>Роль</th>
                 <th>Статус</th>
                 <th>Дата регистрации</th>
+                <th>Удалить аккаунт</th>
             </tr>
         </thead>
         <tbody>
             {% for u in users %}
             <tr>
-                <td>{{ u.id }}</td>
-                <td><strong>{{ u.username }}</strong></td>
-                <td>{{ u.email }}</td>
+                <td>{{ u.id }}</span>
+                <td><strong>{{ u.username }}</strong></span>
+                <td>{{ u.email }}</span>
                 <td>
                     {% if u.role == 'global_admin' %}
                         Глобальный администратор
@@ -29,15 +30,26 @@
                     {% else %}
                         Обычный пользователь
                     {% endif %}
-                </td>
+                </span>
                 <td>
                     {% if u.is_blocked %}
                         <span class="status-blocked">Заблокирован</span>
                     {% else %}
                         <span class="status-active">Активен</span>
                     {% endif %}
-                </td>
-                <td class="coords">{{ u.created_at }}</td>
+                </span>
+                <td class="coords">{{ u.created_at }}</span>
+                <td>
+                    {% if u.id != session['user_id'] %}
+                    <form method="POST" action="/admin/global/delete-user" 
+                          onsubmit="return confirm('Вы уверены, что хотите НАВСЕГДА удалить аккаунт пользователя {{ u.username }}?\n\nВсе данные пользователя (маршруты, аллергены, логи) будут удалены без возможности восстановления.\n\nЭто действие НЕОБРАТИМО!');">
+                        <input type="hidden" name="user_id" value="{{ u.id }}">
+                        <button type="submit" class="btn btn-danger-pale btn-sm">Удалить</button>
+                    </form>
+                    {% else %}
+                        <span style="color: #95a5a6; font-size: 11px;">Свой аккаунт</span>
+                    {% endif %}
+                </span>
             </tr>
             {% endfor %}
         </tbody>

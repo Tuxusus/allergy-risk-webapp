@@ -1,6 +1,7 @@
 {% extends "admin/base_admin.html" %}
 
 {% block content %}
+
 <div class="admin-card">
     <h2>Пользователи системы</h2>
     {% if users and users|length > 0 %}
@@ -50,48 +51,187 @@
     <p class="empty-message">Нет обычных пользователей</p>
     {% endif %}
 </div>
+<div class="admin-card">
+    <h2>Заявки на сброс пароля</h2>
+    {% if reset_requests and reset_requests|length > 0 %}
+    <div class="table-wrapper">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Пользователь</th>
+                    <th>Email</th>
+                    <th>Дата заявки</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in reset_requests %}
+                <tr>
+                    <td>{{ req.id }}</span>
+                    <td><strong>{{ req.username }}</strong></span>
+                    <td>{{ req.email }}</span>
+                    <td class="coords">{{ req.created_at }}</span>
+                    <td>
+                        <form method="POST" action="/admin/user/approve-reset-request" style="display:inline-block; margin-right: 8px;">
+                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                            <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Сбросить пароль пользователю {{ req.username }} на 123456?')">Подтвердить</button>
+                        </form>
+                        <form method="POST" action="/admin/user/reject-reset-request" style="display:inline-block;">
+                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                            <button type="submit" class="btn btn-danger-pale btn-sm" onclick="return confirm('Отклонить заявку пользователя {{ req.username }}?')">Отклонить</button>
+                        </form>
+                    </span>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-message">Нет активных заявок на сброс пароля</p>
+    {% endif %}
+</div>
+<div class="admin-card">
+    <h2>Очистка истории маршрутов</h2>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <form method="POST" action="/admin/user/cleanup-routes" onsubmit="return confirmCleanupRoutes()" style="flex: 1;">
+            <div class="form-group">
+                <div class="form-field">
+                    <label>Маршруты старше (дней)</label>
+                    <input type="number" name="days" value="365" min="90" max="1095" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Очистить</button>
+            </div>
+        </form>
+        
+        <form method="POST" action="/admin/user/cleanup-user-routes" onsubmit="return confirmCleanupUserRoutes()" style="flex: 1;">
+            <div class="form-group">
+                <div class="form-field">
+                    <label>Маршруты пользователя</label>
+                    <select name="user_id" required>
+                        <option value="">Выберите</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Очистить</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <div class="admin-card">
     <h2>История маршрутов пользователей</h2>
     {% if routes and routes|length > 0 %}
-    <table class="admin-table">
-        <thead>
-            <tr>
-                <th>Пользователь</th>
-                <th>Откуда</th>
-                <th>Куда</th>
-                <th>Риск</th>
-                <th>Аллерген</th>
-                <th>Дата</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for route in routes %}
-            <tr>
-                <td><strong>{{ route.username }}</strong></span>
-                <td class="coords">{{ route.start_lat }}, {{ route.start_lon }}</span>
-                <td class="coords">{{ route.end_lat }}, {{ route.end_lon }}</span>
-                <td class="risk-cell">
-                    {% if route.risk_score < 25 %}
-                        <span class="risk-low-badge">{{ route.risk_score }}</span>
-                    {% elif route.risk_score < 50 %}
-                        <span class="risk-medium-badge">{{ route.risk_score }}</span>
-                    {% else %}
-                        <span class="risk-high-badge">{{ route.risk_score }}</span>
-                    {% endif %}
-                </span>
-                <td>
-                    {% if route.allergen_type == 'birch' %}Берёза
-                    {% elif route.allergen_type == 'grass' %}Злаки
-                    {% else %}Амброзия{% endif %}
-                </span>
-                <td class="coords">{{ route.created_at }}</span>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-wrapper">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Пользователь</th>
+                    <th>Откуда</th>
+                    <th>Куда</th>
+                    <th>Риск</th>
+                    <th>Аллерген</th>
+                    <th>Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for route in routes %}
+                <tr>
+                    <td><strong>{{ route.username }}</strong></span>
+                    <td class="coords">{{ route.start_lat }}, {{ route.start_lon }}</span>
+                    <td class="coords">{{ route.end_lat }}, {{ route.end_lon }}</span>
+                    <td class="risk-cell">
+                        {% if route.risk_score < 25 %}
+                            <span class="risk-low-badge">{{ route.risk_score }}</span>
+                        {% elif route.risk_score < 50 %}
+                            <span class="risk-medium-badge">{{ route.risk_score }}</span>
+                        {% else %}
+                            <span class="risk-high-badge">{{ route.risk_score }}</span>
+                        {% endif %}
+                    </span>
+                    <td>
+                        {% if route.allergen_type == 'birch' %}Берёза
+                        {% elif route.allergen_type == 'grass' %}Злаки
+                        {% else %}Амброзия{% endif %}
+                    </span>
+                    <td class="coords">{{ route.created_at }}</span>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
     <p class="empty-message">Нет сохранённых маршрутов</p>
     {% endif %}
 </div>
+
+<script>
+function confirmCleanupRoutes() {
+    const days = document.querySelector('input[name="days"]').value;
+    return confirm(`Удалить ВСЮ историю маршрутов старше ${days} дней? Это действие необратимо.`);
+}
+
+function confirmCleanupUserRoutes() {
+    const select = document.querySelector('select[name="user_id"]');
+    const userName = select.options[select.selectedIndex]?.text || 'выбранного пользователя';
+    return confirm(`Удалить ВСЕ маршруты пользователя ${userName}? Это действие необратимо.`);
+}
+</script>
+
+<style>
+.form-group {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.form-field {
+    flex: 1;
+}
+
+.form-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.form-field input,
+.form-field select {
+    width: 100%;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.btn-primary {
+    white-space: nowrap;
+    padding: 10px 20px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .form-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .btn-primary {
+        white-space: normal;
+    }
+}
+</style>
 {% endblock %}

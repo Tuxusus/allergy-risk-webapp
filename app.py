@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
-from flask import Flask, jsonify, render_template, request, session, redirect, url_for, send_from_directory
+from flask import Flask, jsonify, render_template, request, session, redirect, url_for, send_from_directory, flash
 from flask_cors import CORS
 import mysql.connector
 import bcrypt
@@ -16,10 +16,6 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
 app.permanent_session_lifetime = timedelta(days=7)
 CORS(app, supports_credentials=True)
-
-# =====================
-# НАСТРОЙКА БАЗЫ ДАННЫХ
-# =====================
 
 DB_CONFIG = {
     'host': 'localhost',
@@ -119,7 +115,16 @@ def init_db():
             )
         """)
         
-        # Создание тестового глобального администратора
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_requests (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                status VARCHAR(20) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        
         test_admin_email = "admin@allergy.com"
         test_admin_password = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt())
         cursor.execute("SELECT id FROM users WHERE email = %s", (test_admin_email,))
@@ -156,16 +161,15 @@ def init_db():
                     VALUES (%s, 'ragweed', 3)
                 """, (user2[0],))
             
-            # Добавление тестовых опасных зон
             cursor.execute("""
-                INSERT INTO danger_zones (name, lat, lon, radius, allergen_type, created_by) 
+                INSERT INTO danger_zones (name, lat, lon, radius, allergen_type, severity, created_by) 
                 VALUES 
-                ('Парк Горького', 55.7355, 37.6050, 1500, 'birch', 1),
-                ('ВДНХ', 55.8300, 37.6300, 1800, 'grass', 1),
-                ('Царицыно', 55.6150, 37.6800, 1200, 'ragweed', 1),
-                ('Сокольники', 55.8000, 37.6800, 1400, 'birch', 1),
-                ('Измайлово', 55.7900, 37.7600, 1300, 'grass', 1),
-                ('Лосиный остров', 55.8300, 37.6500, 2000, 'birch', 1)
+                ('Парк Горького', 55.7355, 37.6050, 1500, 'birch', 3, 1),
+                ('ВДНХ', 55.8300, 37.6300, 1800, 'grass', 2, 1),
+                ('Царицыно', 55.6150, 37.6800, 1200, 'ragweed', 4, 1),
+                ('Сокольники', 55.8000, 37.6800, 1400, 'birch', 3, 1),
+                ('Измайлово', 55.7900, 37.7600, 1300, 'grass', 2, 1),
+                ('Лосиный остров', 55.8300, 37.6500, 2000, 'birch', 5, 1)
             """)
         
         conn.commit()
@@ -176,10 +180,6 @@ def init_db():
         print(f"Ошибка инициализации MySQL: {e}")
 
 init_db()
-
-# =====================
-# ООП КЛАССЫ
-# =====================
 
 class User:
     def __init__(self, id, username, email, role, is_blocked=0):
@@ -249,6 +249,19 @@ class DangerZone:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         if allergen_type:
+            cursor.execute("SELECT id, name, lat, lon, radius, allergen_type, severity, created_by FROM danger_zones WHERE allergen_type = %s AND severity > 0 ORDER BY id", (allergen_type,))
+        else:
+            cursor.execute("SELECT id, name, lat, lon, radius, allergen_type, severity, created_by FROM danger_zones WHERE severity > 0 ORDER BY id")
+        zones = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return zones
+    
+    @staticmethod
+    def get_all_with_inactive(allergen_type=None):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        if allergen_type:
             cursor.execute("SELECT id, name, lat, lon, radius, allergen_type, severity, created_by FROM danger_zones WHERE allergen_type = %s ORDER BY id", (allergen_type,))
         else:
             cursor.execute("SELECT id, name, lat, lon, radius, allergen_type, severity, created_by FROM danger_zones ORDER BY id")
@@ -277,6 +290,54 @@ class DangerZone:
         cursor.execute("DELETE FROM danger_zones WHERE id = %s", (zone_id,))
         conn.commit()
         affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        return affected
+    
+    @staticmethod
+    def batch_update_radius(allergen_type, operation, value):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if operation == "set":
+            sql = "UPDATE danger_zones SET radius = %s WHERE allergen_type = %s"
+            params = (int(value), allergen_type)
+        elif operation == "add":
+            sql = "UPDATE danger_zones SET radius = radius + %s WHERE allergen_type = %s"
+            params = (int(value), allergen_type)
+        elif operation == "subtract":
+            sql = "UPDATE danger_zones SET radius = GREATEST(100, radius - %s) WHERE allergen_type = %s"
+            params = (int(value), allergen_type)
+        elif operation == "multiply":
+            sql = "UPDATE danger_zones SET radius = radius * %s WHERE allergen_type = %s"
+            params = (value, allergen_type)
+        elif operation == "percent_increase":
+            multiplier = 1 + (value / 100)
+            sql = "UPDATE danger_zones SET radius = radius * %s WHERE allergen_type = %s"
+            params = (multiplier, allergen_type)
+        elif operation == "percent_decrease":
+            multiplier = 1 - (value / 100)
+            sql = "UPDATE danger_zones SET radius = GREATEST(100, radius * %s) WHERE allergen_type = %s"
+            params = (multiplier, allergen_type)
+        else:
+            cursor.close()
+            conn.close()
+            return 0
+        
+        cursor.execute(sql, params)
+        affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return affected
+    
+    @staticmethod
+    def batch_update_severity(allergen_type, severity):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE danger_zones SET severity = %s WHERE allergen_type = %s", (severity, allergen_type))
+        affected = cursor.rowcount
+        conn.commit()
         cursor.close()
         conn.close()
         return affected
@@ -335,6 +396,28 @@ class RouteHistory:
         cursor.close()
         conn.close()
         return count
+    
+    @staticmethod
+    def delete_old(days=365):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM route_history WHERE created_at < DATE_SUB(NOW(), INTERVAL %s DAY)", (days,))
+        affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return affected
+    
+    @staticmethod
+    def delete_by_user(user_id):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM route_history WHERE user_id = %s", (user_id,))
+        affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return affected
 
 class SystemLog:
     @staticmethod
@@ -369,10 +452,28 @@ class SystemLog:
         cursor.close()
         conn.close()
         return count
-
-# =====================
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-# =====================
+    
+    @staticmethod
+    def delete_old(days=90):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM system_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL %s DAY)", (days,))
+        affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return affected
+    
+    @staticmethod
+    def delete_by_user(user_id):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM system_logs WHERE user_id = %s", (user_id,))
+        affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return affected
 
 def get_current_user_obj():
     if 'user_id' in session:
@@ -430,10 +531,6 @@ def user_admin_required(f):
             return jsonify({"error": "Доступ только для администратора по пользователям"}), 403
         return f(*args, **kwargs)
     return decorated_function
-
-# =====================
-# API ДЛЯ ПОГОДЫ И РИСКА
-# =====================
 
 WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
 AIR_API_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -597,10 +694,6 @@ def point_payload(lat: float, lon: float, allergen_key: str, with_forecast: bool
         "risk": bundle["level"], "score": score, "color": bundle["color"],
         "marker_value": bundle["marker_value"], "risk_css": bundle["css"],
     }
-
-# =====================
-# API АВТОРИЗАЦИИ
-# =====================
 
 @app.route("/api/register", methods=["POST"])
 def register():
@@ -774,9 +867,42 @@ def remove_user_allergen(allergen_type):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# =====================
-# ОСНОВНЫЕ МАРШРУТЫ
-# =====================
+@app.route("/api/request-password-reset", methods=["POST"])
+def request_password_reset():
+    data = request.get_json()
+    email = data.get("email", "").strip().lower()
+    
+    if not email:
+        return jsonify({"error": "Email обязателен"}), 400
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT id, username FROM users WHERE email = %s AND role = 'user'", (email,))
+    user = cursor.fetchone()
+    
+    if not user:
+        cursor.close()
+        conn.close()
+        return jsonify({"success": True, "message": "Если пользователь существует, заявка отправлена"})
+    
+    cursor.execute("SELECT id FROM password_reset_requests WHERE user_id = %s AND status = 'pending'", (user['id'],))
+    if cursor.fetchone():
+        cursor.close()
+        conn.close()
+        return jsonify({"success": True, "message": "Заявка уже отправлена, ожидайте"})
+    
+    cursor.execute("""
+        INSERT INTO password_reset_requests (user_id, status)
+        VALUES (%s, 'pending')
+    """, (user['id'],))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    SystemLog.add(user['id'], user['username'], "Отправил заявку на сброс пароля")
+    
+    return jsonify({"success": True, "message": "Заявка отправлена администратору"})
 
 @app.route("/")
 def index():
@@ -892,10 +1018,6 @@ def get_route_history():
         print(f"Ошибка получения истории: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-# =====================
-# АДМИН-ПАНЕЛЬ (ГЛОБАЛЬНЫЙ АДМИН)
-# =====================
-
 @app.route("/admin/global")
 @global_admin_required
 def admin_global():
@@ -908,7 +1030,7 @@ def admin_global():
     total_users = cursor.fetchone()['count']
     
     cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'user'")
-    regular_users = cursor.fetchone()['count']
+    regular_users_count = cursor.fetchone()['count']
     
     cursor.execute("SELECT COUNT(*) as count FROM route_history")
     total_routes = cursor.fetchone()['count']
@@ -919,13 +1041,30 @@ def admin_global():
     cursor.execute("SELECT COUNT(*) as count FROM system_logs")
     total_logs = cursor.fetchone()['count']
     
+    cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'global_admin'")
+    global_admins_count = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'allergen_admin'")
+    allergen_admins_count = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'user_admin'")
+    user_admins_count = cursor.fetchone()['count']
+    
     cursor.execute("""
-        SELECT id, username, email, role 
+        SELECT id, username, email, role,
+               CASE 
+                   WHEN role = 'allergen_admin' THEN 'Аллерген-администратор'
+                   WHEN role = 'user_admin' THEN 'Пользователь-администратор'
+                   ELSE role
+               END as role_name
         FROM users 
         WHERE role IN ('allergen_admin', 'user_admin')
         ORDER BY id
     """)
     admins = cursor.fetchall()
+    
+    cursor.execute("SELECT id, username, email FROM users WHERE role = 'user' ORDER BY username")
+    users = cursor.fetchall()
     
     cursor.close()
     conn.close()
@@ -934,42 +1073,53 @@ def admin_global():
                           username=user.username, 
                           role=user.role,
                           total_users=total_users,
-                          regular_users=regular_users,
+                          regular_users=regular_users_count,
                           total_routes=total_routes,
                           total_zones=total_zones,
                           total_logs=total_logs,
-                          admins=admins)
+                          global_admins_count=global_admins_count,
+                          allergen_admins_count=allergen_admins_count,
+                          user_admins_count=user_admins_count,
+                          admins=admins,
+                          users=users)
 
 @app.route("/admin/global/add-admin", methods=["POST"])
 @global_admin_required
 def add_admin():
     admin_user = get_current_user_obj()
-    email = request.form.get("email")
+    user_id = request.form.get("user_id")
     role = request.form.get("role")
+    
+    if not user_id:
+        flash("Не выбран пользователь", "error")
+        return redirect("/admin/global")
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute("SELECT id, username, role FROM users WHERE email = %s", (email,))
+    cursor.execute("SELECT id, username, email, role FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     
     if not user:
         cursor.close()
         conn.close()
-        return "Пользователь с таким email не найден", 404
+        flash("Пользователь не найден", "error")
+        return redirect("/admin/global")
     
     if user['role'] != 'user':
         cursor.close()
         conn.close()
-        return "Этот пользователь уже является администратором", 400
+        flash("Этот пользователь уже является администратором", "error")
+        return redirect("/admin/global")
     
     cursor.execute("UPDATE users SET role = %s WHERE id = %s", (role, user['id']))
     conn.commit()
     cursor.close()
     conn.close()
     
-    SystemLog.add(admin_user.id, admin_user.username, f"Назначил {role} пользователю {user['username']} ({email})")
+    SystemLog.add(admin_user.id, admin_user.username, f"Назначил {role} пользователю {user['username']} ({user['email']})")
     
+    flash(f"Пользователь {user['username']} назначен администратором по { 'аллергенам' if role == 'allergen_admin' else 'пользователям' }", "success")
     return redirect("/admin/global")
 
 @app.route("/admin/global/remove-admin", methods=["POST"])
@@ -1008,7 +1158,15 @@ def remove_admin():
 def admin_logs():
     user = get_current_user_obj()
     logs = SystemLog.get_all(200)
-    return render_template("admin/logs.html", username=user.username, role=user.role, logs=logs)
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, username, email FROM users ORDER BY username")
+    all_users = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    return render_template("admin/logs.html", username=user.username, role=user.role, logs=logs, all_users=all_users)
 
 @app.route("/admin/users-list")
 @global_admin_required
@@ -1017,87 +1175,141 @@ def admin_users_list():
     users = User.get_all_users()
     return render_template("admin/users_list.html", username=user.username, role=user.role, users=users)
 
-# =====================
-# АДМИН-ПАНЕЛЬ (АЛЛЕРГЕН-АДМИН)
-# =====================
-
-@app.route("/admin/allergen")
-@allergen_admin_required
-def admin_allergen():
-    user = get_current_user_obj()
-    zones = DangerZone.get_all()
-    return render_template("admin/allergen_admin.html", username=user.username, role=user.role, zones=zones)
-
-@app.route("/admin/allergen/add-zone", methods=["POST"])
-@allergen_admin_required
-def add_zone():
-    user = get_current_user_obj()
+@app.route("/admin/global/cleanup-logs", methods=["POST"])
+@global_admin_required
+def cleanup_logs():
+    admin_user = get_current_user_obj()
+    days = request.form.get("days", 90, type=int)
     
-    try:
-        zone = DangerZone(
-            id=None,
-            name=request.form.get("name"),
-            lat=float(request.form.get("lat")),
-            lon=float(request.form.get("lon")),
-            radius=int(request.form.get("radius", 1500)),
-            allergen_type=request.form.get("allergen_type"),
-            severity=1,
-            created_by=user.id
-        )
-        zone.save()
-        SystemLog.add(user.id, user.username, f"Добавил опасную зону: {zone.name}")
-    except Exception as e:
-        print(f"Ошибка при добавлении зоны: {e}")
+    if days < 30:
+        days = 30
     
-    return redirect("/admin/allergen")
+    affected = SystemLog.delete_old(days)
+    
+    SystemLog.add(admin_user.id, admin_user.username, f"Очистил системные логи старше {days} дней. Удалено записей: {affected}")
+    
+    flash(f"Успешно удалено {affected} записей логов старше {days} дней", "success")
+    return redirect("/admin/logs")
 
-@app.route("/admin/allergen/delete-zone", methods=["POST"])
-@allergen_admin_required
-def delete_zone():
-    user = get_current_user_obj()
-    zone_id = request.form.get("zone_id")
+@app.route("/admin/global/cleanup-user-logs", methods=["POST"])
+@global_admin_required
+def cleanup_user_logs():
+    admin_user = get_current_user_obj()
+    user_id = request.form.get("user_id")
     
-    if zone_id:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT name FROM danger_zones WHERE id = %s", (zone_id,))
-        zone = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        
-        if zone:
-            DangerZone.delete(zone_id)
-            SystemLog.add(user.id, user.username, f"Удалил опасную зону: {zone['name']}")
-    
-    return redirect("/admin/allergen")
-
-@app.route("/admin/allergen/stats")
-@allergen_admin_required
-def allergen_stats():
-    user = get_current_user_obj()
+    if not user_id:
+        flash("Не указан пользователь", "error")
+        return redirect("/admin/logs")
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT 
-            allergen_type,
-            COUNT(*) as count
-        FROM danger_zones
-        GROUP BY allergen_type
-    """)
-    stats = cursor.fetchall()
+    
+    cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+    target_user = cursor.fetchone()
+    
+    if not target_user:
+        cursor.close()
+        conn.close()
+        flash("Пользователь не найден", "error")
+        return redirect("/admin/logs")
+    
+    affected = SystemLog.delete_by_user(user_id)
+    conn.commit()
     cursor.close()
     conn.close()
     
-    allergen_names = {"birch": "Берёза", "grass": "Злаки", "ragweed": "Амброзия"}
-    for s in stats:
-        s['allergen_label'] = allergen_names.get(s['allergen_type'], s['allergen_type'])
+    SystemLog.add(admin_user.id, admin_user.username, f"Очистил все логи пользователя {target_user['username']}. Удалено записей: {affected}")
     
-    return render_template("admin/allergen_stats.html", username=user.username, role=user.role, stats=stats)
+    flash(f"Успешно удалено {affected} записей логов пользователя {target_user['username']}", "success")
+    return redirect("/admin/logs")
 
-# =====================
-# АДМИН-ПАНЕЛЬ (ПОЛЬЗОВАТЕЛЬ-АДМИН)
-# =====================
+@app.route("/admin/global/cleanup-routes", methods=["POST"])
+@global_admin_required
+def cleanup_routes():
+    admin_user = get_current_user_obj()
+    days = request.form.get("days", 365, type=int)
+    
+    if days < 90:
+        days = 90
+    
+    affected = RouteHistory.delete_old(days)
+    
+    SystemLog.add(admin_user.id, admin_user.username, f"Очистил историю маршрутов старше {days} дней. Удалено записей: {affected}")
+    
+    flash(f"Успешно удалено {affected} записей истории маршрутов старше {days} дней", "success")
+    return redirect("/admin/logs")
+
+@app.route("/admin/global/cleanup-user-routes", methods=["POST"])
+@global_admin_required
+def cleanup_user_routes():
+    admin_user = get_current_user_obj()
+    user_id = request.form.get("user_id")
+    
+    if not user_id:
+        flash("Не указан пользователь", "error")
+        return redirect("/admin/logs")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+    target_user = cursor.fetchone()
+    
+    if not target_user:
+        cursor.close()
+        conn.close()
+        flash("Пользователь не найден", "error")
+        return redirect("/admin/logs")
+    
+    affected = RouteHistory.delete_by_user(user_id)
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    SystemLog.add(admin_user.id, admin_user.username, f"Очистил все маршруты пользователя {target_user['username']}. Удалено записей: {affected}")
+    
+    flash(f"Успешно удалено {affected} маршрутов пользователя {target_user['username']}", "success")
+    return redirect("/admin/logs")
+
+@app.route("/admin/global/delete-user", methods=["POST"])
+@global_admin_required
+def delete_user_account():
+    admin_user = get_current_user_obj()
+    user_id = request.form.get("user_id")
+    
+    if not user_id:
+        flash("Не указан пользователь", "error")
+        return redirect("/admin/users-list")
+    
+    if int(user_id) == admin_user.id:
+        flash("Нельзя удалить свой собственный аккаунт", "error")
+        return redirect("/admin/users-list")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT id, username, email, role FROM users WHERE id = %s", (user_id,))
+    target_user = cursor.fetchone()
+    
+    if not target_user:
+        cursor.close()
+        conn.close()
+        flash("Пользователь не найден", "error")
+        return redirect("/admin/users-list")
+    
+    username = target_user['username']
+    email = target_user['email']
+    role = target_user['role']
+    
+    cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    SystemLog.add(admin_user.id, admin_user.username, f"Удалил аккаунт пользователя {username} ({email}), роль: {role}")
+    
+    flash(f"Аккаунт пользователя {username} успешно удалён", "success")
+    return redirect("/admin/users-list")
 
 @app.route("/admin/user")
 @user_admin_required
@@ -1111,10 +1323,24 @@ def admin_user():
     
     routes = RouteHistory.get_all_history(50)
     
+    cursor.execute("""
+        SELECT pr.id, pr.user_id, pr.status, pr.created_at, u.username, u.email
+        FROM password_reset_requests pr
+        JOIN users u ON pr.user_id = u.id
+        WHERE pr.status = 'pending'
+        ORDER BY pr.created_at DESC
+    """)
+    reset_requests = cursor.fetchall()
+    
     cursor.close()
     conn.close()
     
-    return render_template("admin/user_admin.html", username=user.username, role=user.role, users=users, routes=routes)
+    return render_template("admin/user_admin.html", 
+                          username=user.username, 
+                          role=user.role, 
+                          users=users, 
+                          routes=routes,
+                          reset_requests=reset_requests)
 
 @app.route("/admin/user/block", methods=["POST"])
 @user_admin_required
@@ -1132,6 +1358,7 @@ def block_user():
     if target_user:
         User.toggle_block(user_id, 1)
         SystemLog.add(admin_user.id, admin_user.username, f"Заблокировал пользователя: {target_user['username']}")
+        flash(f"Пользователь {target_user['username']} заблокирован", "success")
     
     return redirect("/admin/user")
 
@@ -1151,7 +1378,123 @@ def unblock_user():
     if target_user:
         User.toggle_block(user_id, 0)
         SystemLog.add(admin_user.id, admin_user.username, f"Разблокировал пользователя: {target_user['username']}")
+        flash(f"Пользователь {target_user['username']} разблокирован", "success")
     
+    return redirect("/admin/user")
+
+@app.route("/admin/user/cleanup-routes", methods=["POST"])
+@user_admin_required
+def user_cleanup_routes():
+    admin_user = get_current_user_obj()
+    days = request.form.get("days", 365, type=int)
+    
+    if days < 90:
+        days = 90
+    
+    affected = RouteHistory.delete_old(days)
+    
+    SystemLog.add(admin_user.id, admin_user.username, f"Очистил историю маршрутов старше {days} дней. Удалено записей: {affected}")
+    
+    flash(f"Успешно удалено {affected} записей истории маршрутов старше {days} дней", "success")
+    return redirect("/admin/user")
+
+@app.route("/admin/user/cleanup-user-routes", methods=["POST"])
+@user_admin_required
+def user_cleanup_user_routes():
+    admin_user = get_current_user_obj()
+    user_id = request.form.get("user_id")
+    
+    if not user_id:
+        flash("Не указан пользователь", "error")
+        return redirect("/admin/user")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+    target_user = cursor.fetchone()
+    
+    if not target_user:
+        cursor.close()
+        conn.close()
+        flash("Пользователь не найден", "error")
+        return redirect("/admin/user")
+    
+    affected = RouteHistory.delete_by_user(user_id)
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    SystemLog.add(admin_user.id, admin_user.username, f"Очистил все маршруты пользователя {target_user['username']}. Удалено записей: {affected}")
+    
+    flash(f"Успешно удалено {affected} маршрутов пользователя {target_user['username']}", "success")
+    return redirect("/admin/user")
+
+@app.route("/admin/user/approve-reset-request", methods=["POST"])
+@user_admin_required
+def approve_reset_request():
+    admin_user = get_current_user_obj()
+    request_id = request.form.get("request_id")
+    
+    if not request_id:
+        flash("Не указана заявка", "error")
+        return redirect("/admin/user")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("""
+        SELECT pr.*, u.username, u.email
+        FROM password_reset_requests pr
+        JOIN users u ON pr.user_id = u.id
+        WHERE pr.id = %s AND pr.status = 'pending'
+    """, (request_id,))
+    req = cursor.fetchone()
+    
+    if not req:
+        cursor.close()
+        conn.close()
+        flash("Заявка не найдена или уже обработана", "error")
+        return redirect("/admin/user")
+    
+    new_password = "123456"
+    password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+    cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (password_hash.decode('utf-8'), req['user_id']))
+    cursor.execute("UPDATE password_reset_requests SET status = 'approved' WHERE id = %s", (request_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    SystemLog.add(admin_user.id, admin_user.username, f"Одобрил сброс пароля для {req['username']}. Новый пароль: {new_password}")
+    
+    flash(f"Пароль пользователя {req['username']} сброшен на '{new_password}'. Сообщите пользователю!", "success")
+    return redirect("/admin/user")
+
+@app.route("/admin/user/reject-reset-request", methods=["POST"])
+@user_admin_required
+def reject_reset_request():
+    admin_user = get_current_user_obj()
+    request_id = request.form.get("request_id")
+    
+    if not request_id:
+        flash("Не указана заявка", "error")
+        return redirect("/admin/user")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT u.username FROM password_reset_requests pr JOIN users u ON pr.user_id = u.id WHERE pr.id = %s", (request_id,))
+    req = cursor.fetchone()
+    
+    cursor.execute("UPDATE password_reset_requests SET status = 'rejected' WHERE id = %s", (request_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    if req:
+        SystemLog.add(admin_user.id, admin_user.username, f"Отклонил заявку на сброс пароля от {req['username']}")
+    
+    flash("Заявка отклонена", "success")
     return redirect("/admin/user")
 
 @app.route("/admin/user-stats")
@@ -1184,9 +1527,233 @@ def admin_user_stats():
     
     return render_template("admin/user_stats.html", username=user.username, role=user.role, stats=stats)
 
-# =====================
-# ДОПОЛНИТЕЛЬНЫЕ API
-# =====================
+def get_allergen_label(allergen_type):
+    labels = {"birch": "Берёза", "grass": "Злаки", "ragweed": "Амброзия"}
+    return labels.get(allergen_type, allergen_type)
+
+@app.route("/admin/allergen")
+@allergen_admin_required
+def admin_allergen():
+    user = get_current_user_obj()
+    zones = DangerZone.get_all_with_inactive()
+    return render_template("admin/allergen_admin.html", username=user.username, role=user.role, zones=zones)
+
+@app.route("/admin/allergen/add-zone", methods=["POST"])
+@allergen_admin_required
+def add_zone():
+    user = get_current_user_obj()
+    
+    try:
+        zone = DangerZone(
+            id=None,
+            name=request.form.get("name"),
+            lat=float(request.form.get("lat")),
+            lon=float(request.form.get("lon")),
+            radius=int(request.form.get("radius", 1500)),
+            allergen_type=request.form.get("allergen_type"),
+            severity=3,
+            created_by=user.id
+        )
+        zone.save()
+        SystemLog.add(user.id, user.username, f"Добавил опасную зону: {zone.name}")
+        flash(f"Зона '{zone.name}' успешно добавлена", "success")
+    except Exception as e:
+        print(f"Ошибка при добавлении зоны: {e}")
+        flash(f"Ошибка при добавлении зоны: {str(e)}", "error")
+    
+    return redirect("/admin/allergen")
+
+@app.route("/admin/allergen/delete-zone", methods=["POST"])
+@allergen_admin_required
+def delete_zone():
+    user = get_current_user_obj()
+    zone_id = request.form.get("zone_id")
+    
+    if zone_id:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT name FROM danger_zones WHERE id = %s", (zone_id,))
+        zone = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if zone:
+            DangerZone.delete(zone_id)
+            SystemLog.add(user.id, user.username, f"Удалил опасную зону: {zone['name']}")
+            flash(f"Зона '{zone['name']}' успешно удалена", "success")
+    
+    return redirect("/admin/allergen")
+
+@app.route("/admin/allergen/batch-update-radius", methods=["POST"])
+@allergen_admin_required
+def batch_update_radius():
+    admin_user = get_current_user_obj()
+    
+    allergen_type = request.form.get("allergen_type")
+    operation = request.form.get("operation")
+    value = request.form.get("value")
+    
+    if not allergen_type or not operation or value is None:
+        flash("Необходимо указать аллерген, операцию и значение", "error")
+        return redirect("/admin/allergen")
+    
+    try:
+        value = float(value)
+    except ValueError:
+        flash("Значение должно быть числом", "error")
+        return redirect("/admin/allergen")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute(
+        "SELECT COUNT(*) as count, AVG(radius) as avg_radius FROM danger_zones WHERE allergen_type = %s",
+        (allergen_type,)
+    )
+    stats = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if stats['count'] == 0:
+        flash(f"Нет зон для аллергена {get_allergen_label(allergen_type)}", "warning")
+        return redirect("/admin/allergen")
+    
+    affected = DangerZone.batch_update_radius(allergen_type, operation, value)
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT MIN(radius) as min_radius, MAX(radius) as max_radius, AVG(radius) as avg_radius FROM danger_zones WHERE allergen_type = %s",
+        (allergen_type,)
+    )
+    new_stats = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    allergen_label = get_allergen_label(allergen_type)
+    operation_labels = {
+        "set": f"установил радиус = {int(value)}м",
+        "add": f"прибавил {int(value)}м к радиусу",
+        "subtract": f"вычел {int(value)}м из радиуса",
+        "multiply": f"умножил радиус на {value}",
+        "percent_increase": f"увеличил радиус на {value}%",
+        "percent_decrease": f"уменьшил радиус на {value}%"
+    }
+    operation_desc = operation_labels.get(operation, operation)
+    
+    SystemLog.add(
+        admin_user.id, 
+        admin_user.username, 
+        f"Массовое изменение радиуса для {allergen_label}: {operation_desc}. "
+        f"Затронуто зон: {stats['count']}. "
+        f"Было: в среднем {stats['avg_radius']:.0f}м. Стало: мин={new_stats['min_radius']:.0f}м, "
+        f"макс={new_stats['max_radius']:.0f}м, среднее={new_stats['avg_radius']:.0f}м"
+    )
+    
+    flash(f"Успешно обновлены радиусы для {affected} зон ({allergen_label})", "success")
+    return redirect("/admin/allergen")
+
+@app.route("/admin/allergen/batch-update-severity", methods=["POST"])
+@allergen_admin_required
+def batch_update_severity():
+    admin_user = get_current_user_obj()
+    
+    allergen_type = request.form.get("allergen_type")
+    severity = request.form.get("severity")
+    
+    if not allergen_type or severity is None:
+        flash("Необходимо указать аллерген и уровень опасности", "error")
+        return redirect("/admin/allergen")
+    
+    try:
+        severity = int(severity)
+        if severity < 0 or severity > 5:
+            raise ValueError("Severity должен быть от 0 до 5")
+    except ValueError:
+        flash("Уровень опасности должен быть числом от 0 до 5", "error")
+        return redirect("/admin/allergen")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute(
+        "SELECT COUNT(*) as count, severity FROM danger_zones WHERE allergen_type = %s GROUP BY severity",
+        (allergen_type,)
+    )
+    old_distribution = cursor.fetchall()
+    
+    cursor.execute(
+        "SELECT COUNT(*) as total FROM danger_zones WHERE allergen_type = %s",
+        (allergen_type,)
+    )
+    total_zones = cursor.fetchone()['total']
+    cursor.close()
+    conn.close()
+    
+    if total_zones == 0:
+        flash(f"Нет зон для аллергена {get_allergen_label(allergen_type)}", "warning")
+        return redirect("/admin/allergen")
+    
+    affected = DangerZone.batch_update_severity(allergen_type, severity)
+    
+    allergen_label = get_allergen_label(allergen_type)
+    
+    severity_labels = {
+        0: "Деактивирована",
+        1: "Низкая",
+        2: "Ниже среднего",
+        3: "Средняя",
+        4: "Высокая",
+        5: "Критическая"
+    }
+    severity_label = severity_labels.get(severity, str(severity))
+    
+    old_distribution_str = ", ".join([f"severity={s['severity']}: {s['count']} зон" for s in old_distribution])
+    
+    SystemLog.add(
+        admin_user.id,
+        admin_user.username,
+        f"Массовое изменение severity для {allergen_label}: установлен уровень {severity_label} ({severity}). "
+        f"Затронуто зон: {affected}. "
+        f"Предыдущее распределение: {old_distribution_str}"
+    )
+    
+    if severity == 0:
+        flash(f"Успешно деактивированы {affected} зон ({allergen_label}). Они больше не будут отображаться на карте.", "success")
+    else:
+        flash(f"Успешно обновлен уровень опасности для {affected} зон ({allergen_label}) до {severity_label}", "success")
+    
+    return redirect("/admin/allergen")
+
+@app.route("/admin/allergen/stats")
+@allergen_admin_required
+def allergen_stats():
+    user = get_current_user_obj()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT 
+            allergen_type,
+            COUNT(*) as total_zones,
+            AVG(radius) as avg_radius,
+            MIN(radius) as min_radius,
+            MAX(radius) as max_radius,
+            SUM(CASE WHEN severity = 0 THEN 1 ELSE 0 END) as inactive_zones,
+            SUM(CASE WHEN severity > 0 THEN 1 ELSE 0 END) as active_zones,
+            AVG(CASE WHEN severity > 0 THEN severity ELSE NULL END) as avg_severity
+        FROM danger_zones
+        GROUP BY allergen_type
+    """)
+    stats = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    allergen_names = {"birch": "Берёза", "grass": "Злаки", "ragweed": "Амброзия"}
+    for s in stats:
+        s['allergen_label'] = allergen_names.get(s['allergen_type'], s['allergen_type'])
+    
+    return render_template("admin/allergen_stats.html", username=user.username, role=user.role, stats=stats)
 
 @app.route("/api/statistics", methods=["GET"])
 def get_statistics():

@@ -43,14 +43,14 @@
             <div class="side-card" id="global-admin-panel" style="display: none;">
                 <div class="side-card-title">Глобальное управление</div>
                 <button class="btn btn-primary" id="admin-users-btn">Все пользователи</button>
-                <button class="btn btn-primary" id="admin-stats-btn">Мониторинг активности</button>
-                <button class="btn btn-primary" id="admin-logs-btn">Системные логи</button>
+                <button class="btn btn-primary" id="admin-stats-btn">Права доступа</button>
+                <button class="btn btn-primary" id="admin-logs-btn">Мониторинг активности</button>
             </div>
 
             <div class="side-card" id="allergen-admin-panel" style="display: none;">
                 <div class="side-card-title">Управление зонами</div>
                 <button class="btn btn-primary" id="allergen-zones-btn">Опасные зоны</button>
-                <button class="btn btn-primary" id="allergen-stats-btn">Анализ распределения зон</button>
+                <button class="btn btn-primary" id="allergen-stats-btn">Аналитика зон</button>
             </div>
 
             <div class="side-card" id="user-management-panel" style="display: none;">
@@ -165,6 +165,7 @@
                 <input type="email" id="login-email" placeholder="Email" required>
                 <input type="password" id="login-password" placeholder="Пароль" required>
                 <button id="login-submit">Войти</button>
+                <p><a href="#" id="forgot-password-btn">Забыли пароль?</a></p>
                 <p>Нет аккаунта? <a href="#" id="show-register">Зарегистрироваться</a></p>
             </div>
             <div id="register-form" class="auth-form" style="display: none;">
@@ -174,6 +175,13 @@
                 <input type="password" id="reg-password" placeholder="Пароль" required>
                 <button id="register-submit">Зарегистрироваться</button>
                 <p>Уже есть аккаунт? <a href="#" id="show-login">Войти</a></p>
+            </div>
+            <div id="forgot-password-form" class="auth-form" style="display: none;">
+                <h3>Восстановление пароля</h3>
+                <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 16px;">Введите email, и администратор рассмотрит вашу заявку</p>
+                <input type="email" id="reset-email" placeholder="Email" required>
+                <button id="reset-password-submit">Отправить заявку</button>
+                <p><a href="#" id="back-to-login">Вернуться ко входу</a></p>
             </div>
         </div>
     </div>

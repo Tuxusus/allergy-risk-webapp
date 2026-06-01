@@ -2,29 +2,130 @@
 
 {% block content %}
 <div class="admin-card">
+    <h2>Очистка системных логов</h2>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <form method="POST" action="/admin/global/cleanup-logs" onsubmit="return confirmCleanupLogs()" style="flex: 1;">
+            <div class="form-group">
+                <div class="form-field">
+                    <label>Логи старше (дней)</label>
+                    <input type="number" name="days" value="90" min="30" max="730" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Очистить системные логи</button>
+            </div>
+        </form>
+        
+        <form method="POST" action="/admin/global/cleanup-user-logs" onsubmit="return confirmCleanupUserLogs()" style="flex: 1;">
+            <div class="form-group">
+                <div class="form-field">
+                    <label>Логи пользователя</label>
+                    <select name="user_id" required>
+                        <option value="">Выберите</option>
+                        {% for user in all_users %}
+                        <option value="{{ user.id }}">{{ user.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Очистить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="admin-card">
+    <h2>Системные логи</h2>
     {% if logs %}
-    <table class="admin-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Пользователь</th>
-                <th>Действие</th>
-                <th>Дата и время</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td><span class="user-id-badge">{{ log.user_id }}</span></span>
-                <td><strong>{{ log.username }}</strong></span>
-                <td class="action-cell">{{ log.action }}</span>
-                <td class="coords">{{ log.created_at }}</span>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-wrapper">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Пользователь</th>
+                    <th>Действие</th>
+                    <th>Дата и время</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td><span class="user-id-badge">{{ log.user_id }}</span></span>
+                    <td><strong>{{ log.username }}</strong></span>
+                    <td class="action-cell">{{ log.action }}</span>
+                    <td class="coords">{{ log.created_at }}</span>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
     <p class="empty-message">Логи отсутствуют</p>
     {% endif %}
 </div>
+
+<script>
+function confirmCleanupLogs() {
+    const days = document.querySelector('input[name="days"]').value;
+    return confirm(`Удалить ВСЕ системные логи старше ${days} дней? Это действие необратимо.`);
+}
+
+function confirmCleanupUserLogs() {
+    const select = document.querySelector('select[name="user_id"]');
+    const userName = select.options[select.selectedIndex]?.text || 'выбранного пользователя';
+    return confirm(`Удалить ВСЕ логи пользователя ${userName}? Это действие необратимо.`);
+}
+</script>
+
+<style>
+.form-group {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.form-field {
+    flex: 1;
+}
+
+.form-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.form-field input,
+.form-field select {
+    width: 100%;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.btn-primary {
+    white-space: nowrap;
+    padding: 10px 20px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .form-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .btn-primary {
+        white-space: normal;
+    }
+}
+</style>
 {% endblock %}
